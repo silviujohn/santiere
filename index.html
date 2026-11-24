@@ -70,9 +70,17 @@ header.top h1{font-size:28px;line-height:1.15;margin:0;font-weight:700;letter-sp
 /* rândul + butonul ⋯ alături, în afara dreptunghiului */
 .lr{display:flex;align-items:center;gap:6px;margin:8px 0}
 .lr .item{flex:1;min-width:0;margin:0}
-.mv{display:flex;flex-direction:column;gap:4px}
-.mv .pbtn{width:40px;height:40px;font-size:18px}
-.mv .pbtn[disabled]{opacity:.3}
+.drag{flex:none;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--muted);cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.srt.trag{position:relative;z-index:5;box-shadow:0 10px 28px rgba(20,35,60,.22);border-radius:16px;opacity:.95}
+.pickbtn{width:100%;min-height:50px;display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:14px;background:var(--card);padding:12px 14px;font-size:17px;text-align:left;cursor:pointer}
+.spick{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:6px;margin-top:6px}
+.spick .srt{display:flex;align-items:center;gap:4px;background:var(--card)}
+.pkname{flex:1;min-height:46px;border:0;background:transparent;text-align:left;font-size:17px;font-weight:600;padding:0 10px;border-radius:10px;cursor:pointer}
+.pkname.on{background:var(--card2);color:var(--navy-t)}
+.field .drag{display:flex;margin:0;font-size:24px}
+.field .pickbtn span{display:inline;margin:0;font-size:17px;color:var(--text)}
+.field .pickbtn span.muted{color:var(--muted);font-size:14px}
+.field .spick .small{display:block}
 .more{flex:none;width:44px;height:44px;border:0;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:3px;padding:0;border-radius:22px}
 .more span{width:5px;height:5px;border-radius:50%;background:var(--navy-t);opacity:.55;transition:opacity .15s ease}
 .more:hover span,.more:focus-visible span{opacity:1}
@@ -547,16 +555,19 @@ function viewRezumat(){
 }
 
 function viewSetari(){
-  var h='<div class="day">Șantiere și tarife</div><div class="small muted" style="margin:-2px 4px 6px">Ordinea de aici e ordinea din tot softul. Mută cu săgețile; cele oprite merg singure la coadă.</div>';
+  var h='<div class="day">Șantiere și tarife</div><div class="small muted" style="margin:-2px 4px 6px">Ține apăsat pe ≡ și trage ca să schimbi ordinea. Cele oprite merg singure la coadă.</div>';
   var ord=santiereOrd(), active=ord.filter(function(s){ return s.activ!=='nu'; });
+  var deschis=false;
   ord.forEach(function(s){
     var ia=active.indexOf(s);
-    h+='<div class="lr"><button class="item" data-santier="'+esc(s.id)+'"><div class="row"><div class="grow"><div class="t">'+esc(s.nume)+(s.activ==='nu'?' <span class="chip">oprit</span>':'')+'</div>'+
+    if(ia===0){ h+='<div class="srtlist" id="setSrt">'; deschis=true; }
+    if(ia<0 && deschis){ h+='</div>'; deschis=false; }
+    h+='<div class="lr'+(ia>=0?' srt':'')+'" data-id="'+esc(s.id)+'"><button class="item" data-santier="'+esc(s.id)+'"><div class="row"><div class="grow"><div class="t">'+esc(s.nume)+(s.activ==='nu'?' <span class="chip">oprit</span>':'')+'</div>'+
       '<div class="small muted num">'+(has(s.tarif_ora)?eur(num(s.tarif_ora))+'/oră':'fără tarif la oră')+' · '+(has(s.pret_metru)?eur(num(s.pret_metru))+'/m²':'fără preț la metru')+'</div>'+
       '</div></div></button>'+
-      (ia>=0?'<div class="mv"><button class="pbtn pen" data-mv="-1" data-mvid="'+esc(s.id)+'" aria-label="Mută '+esc(s.nume)+' mai sus"'+(ia===0?' disabled':'')+'>↑</button>'+
-        '<button class="pbtn pen" data-mv="1" data-mvid="'+esc(s.id)+'" aria-label="Mută '+esc(s.nume)+' mai jos"'+(ia===active.length-1?' disabled':'')+'>↓</button></div>':'')+'</div>';
+      (ia>=0?'<span class="drag" aria-label="Trage ca să muți '+esc(s.nume)+'">≡</span>':'')+'</div>';
   });
+  if(deschis) h+='</div>';
   var gl=generaleLuna(todayIso().slice(0,7));
   h+='<div class="day">Cheltuieli generale lunare</div><div class="card">'+
      '<div class="small muted" style="margin-bottom:8px">Birou, mașină, utilități, commercialista etc. Se împart pe orele lucrate în lună și scad din rămasul final, la Rezumat.</div>'+
@@ -614,7 +625,7 @@ function bindMain(){
     var val=num(v('gLun')); var luna=todayIso().slice(0,7);
     salvare('Setari',{id:'generale_lunare_'+luna,valoare:String(val),nota:'Cheltuieli generale pe lună, valabile din '+luna},gs,'Salvat: '+eur(val)+' pe lună');
   };
-  m.querySelectorAll('[data-mvid]').forEach(function(b){ b.onclick=function(e){ e.stopPropagation(); mutaSantier(b.dataset.mvid, +b.dataset.mv); }; });
+  sortabil(m.querySelector('#setSrt'), function(ids){ salveazaOrdinea(ids); });
   m.querySelectorAll('[data-santier]').forEach(function(b){ b.onclick=function(){ formSantier(S.data.santiere.find(function(s){ return s.id===b.dataset.santier; })); }; });
   m.querySelectorAll('[data-rez]').forEach(function(b){ b.onclick=function(){ S.rez=b.dataset.rez; render(); }; });
   m.querySelectorAll('[data-sant]').forEach(function(b){ b.onclick=function(){ S.rezSantier=b.dataset.sant; render(); }; });
@@ -662,6 +673,66 @@ function deschide(html){
   $('back').classList.remove('hidden'); $('sheet').classList.remove('hidden');
   requestAnimationFrame(function(){ $('back').classList.add('show'); $('sheet').classList.add('show'); });
   $('sheet').scrollTop=0;
+  legaAlegatoare();
+}
+
+/* =================== alegerea șantierului, cu ordine trasă cu degetul (≡) =================== */
+function santierPick(id, sel){
+  return '<div class="field"><span>Șantier</span><select id="'+id+'" class="hidden">'+optSantiere(sel)+'</select>'+
+    '<button type="button" class="pickbtn" data-pick="'+id+'"><span class="grow">'+esc(sel||'Alege șantierul')+'</span><span class="muted">▾</span></button>'+
+    '<div class="spick hidden" id="pk_'+id+'"></div></div>';
+}
+function legaAlegatoare(){
+  document.querySelectorAll('[data-pick]').forEach(function(b){
+    var id=b.dataset.pick, panou=$('pk_'+id), sel=$(id);
+    function deseneaza(){
+      var act=santiereOrd().filter(function(s){ return s.activ!=='nu'; });
+      panou.innerHTML='<div class="srtlist">'+act.map(function(s){
+        return '<div class="srt" data-id="'+esc(s.id)+'"><button type="button" class="pkname'+(s.nume===sel.value?' on':'')+'">'+esc(s.nume)+'</button>'+
+          '<span class="drag" aria-label="Trage ca să muți '+esc(s.nume)+'">≡</span></div>'; }).join('')+'</div>'+
+        '<div class="small muted" style="margin:6px 4px 0">Ține apăsat pe ≡ și trage ca să schimbi ordinea.</div>';
+      panou.querySelectorAll('.pkname').forEach(function(n){ n.onclick=function(){
+        sel.value=n.textContent; b.querySelector('.grow').textContent=n.textContent; panou.classList.add('hidden');
+        sel.dispatchEvent(new Event('change'));
+      }; });
+      sortabil(panou.querySelector('.srtlist'), function(ids){ salveazaOrdinea(ids); deseneaza(); });
+    }
+    b.onclick=function(){ var ascuns=panou.classList.toggle('hidden'); if(!ascuns) deseneaza(); };
+  });
+}
+/* Mutare cu degetul: se apucă de ≡, rândul urmează degetul, la ridicare se salvează ordinea. */
+function sortabil(lista, gata){
+  if(!lista) return;
+  lista.querySelectorAll('.drag').forEach(function(h){
+    h.onpointerdown=function(e){
+      e.preventDefault();
+      var rand=h.closest('.srt'), y0=e.clientY, mutat=false;
+      rand.classList.add('trag'); h.setPointerCapture(e.pointerId);
+      h.onpointermove=function(ev){
+        var dy=ev.clientY-y0; rand.style.transform='translateY('+dy+'px)';
+        var fr=Array.prototype.slice.call(lista.children).filter(function(x){ return x!==rand; });
+        var mij=rand.getBoundingClientRect().top+rand.offsetHeight/2;
+        for(var i=0;i<fr.length;i++){
+          var r=fr[i].getBoundingClientRect();
+          if(mij<r.top+r.height/2){            if(rand.nextSibling!==fr[i]){ var top0=rand.getBoundingClientRect().top; lista.insertBefore(rand,fr[i]); y0+= rand.getBoundingClientRect().top-top0; rand.style.transform='translateY('+(ev.clientY-y0)+'px)'; mutat=true; }
+            return; }
+        }
+        if(lista.lastChild!==rand){ var t0=rand.getBoundingClientRect().top; lista.appendChild(rand); y0+=rand.getBoundingClientRect().top-t0; rand.style.transform='translateY('+(ev.clientY-y0)+'px)'; mutat=true; }
+      };
+      h.onpointerup=h.onpointercancel=function(){
+        h.onpointermove=null; h.onpointerup=null; h.onpointercancel=null;
+        rand.classList.remove('trag'); rand.style.transform='';
+        if(mutat) gata(Array.prototype.map.call(lista.querySelectorAll('.srt'), function(x){ return x.dataset.id; }));
+      };
+    };
+  });
+}
+function salveazaOrdinea(ids){
+  var act=santiereOrd().filter(function(s){ return s.activ!=='nu'; });
+  var noua=ids.map(function(id){ return act.find(function(s){ return s.id===id; }); }).filter(Boolean);
+  act.forEach(function(s){ if(noua.indexOf(s)<0) noua.push(s); });
+  noua.forEach(function(s,k){ if(num(s.ordine)!==k+1){ var c=JSON.parse(JSON.stringify(s)); c.ordine=String(k+1); delete c.cine; delete c.modificat; salvareTacita('Santiere',c); } });
+  if(S.tab==='setari' || S.tab==='rezumat') render();
 }
 function inchide(){
   $('back').classList.remove('show'); $('sheet').classList.remove('show');
@@ -742,7 +813,7 @@ function formLucru(r){
   var nou=!r; r=r||{data:todayIso(),santier:(santiereOrd().find(function(s){return s.activ!=='nu';})||{}).nume||'',tip:'ora',persoane:'',ore:'',metri:'',nota:''};
   deschide('<h2>'+(nou?'Cine a lucrat și cât':'Modifică ziua')+'</h2>'+
     '<label class="field"><span>Data</span><input id="lData" type="date" value="'+esc(r.data)+'"></label>'+
-    '<label class="field"><span>Șantier</span><select id="lSant">'+optSantiere(r.santier)+'</select></label>'+
+    santierPick('lSant', r.santier)+
     '<div class="field"><span>Cum se plătește</span><div class="seg" id="lTip"><button type="button" data-v="ora" class="'+(r.tip!=='metru'?'on':'')+'">La oră</button><button type="button" data-v="metru" class="'+(r.tip==='metru'?'on':'')+'">La metru</button></div></div>'+
     '<div class="two"><label class="field"><span>Persoane</span><input id="lPers" inputmode="numeric" value="'+esc(r.persoane)+'" placeholder="ex. 3"></label>'+
     '<label class="field"><span>Ore totale</span><input id="lOre" inputmode="decimal" value="'+esc(r.ore)+'" placeholder="ex. 24"></label></div>'+
@@ -837,7 +908,7 @@ function formCost(_, data, sant){
   var contribManual=!!(c.id && has(c.contributii) && num(c.contributii)!==contribCalc(c.data,c.santier));
   deschide('<h2>Produs, cheltuieli, rămas</h2>'+
     '<div class="two"><label class="field"><span>Data</span><input id="cData" type="date" value="'+esc(c.data)+'"></label>'+
-    '<label class="field"><span>Șantier</span><select id="cSant">'+optSantiere(c.santier)+'</select></label></div>'+
+    '</div>'+santierPick('cSant', c.santier)+
     '<div class="crows">'+CAMP_COST.map(function(f){ return '<label class="crow"><span>'+f.t.replace(' €','')+'</span><input id="'+f.id+'" inputmode="decimal" value="'+esc(virg(c[f.k]))+'" placeholder="0"><em>€</em></label>'; }).join('')+'</div>'+
     '<div class="small muted" id="cConInfo" style="margin:-2px 4px 6px"></div>'+
     '<label class="field"><span>Descriere cheltuieli generale</span><input id="cGenD" value="'+esc(c.generale_desc)+'" placeholder="ex. telefon, consumabile, neprevăzute"></label>'+
