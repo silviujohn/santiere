@@ -295,6 +295,13 @@ function load(k){ try{ return localStorage.getItem(k); }catch(e){ return null; }
 function santier(nume){ var l=(S.data&&S.data.santiere)||[]; for(var i=0;i<l.length;i++) if(l[i].nume===nume) return l[i]; return null; }
 /* La metru, prețul se alege la fiecare pontaj (Silviu, 24.11.2026); dacă lipsește, se ia prețul implicit al șantierului. */
 function pretMetru(r,s){ if(has(r.pret_metru)) return num(r.pret_metru); if(s && has(s.pret_metru)) return num(s.pret_metru); return null; }
+/* La oră, tariful e cel din Setări, dar se poate schimba de mână la fiecare pontaj (Silviu, 24.11.2026). */
+function tarifOra(r,s){ if(has(r.tarif_ora)) return num(r.tarif_ora); if(s && has(s.tarif_ora)) return num(s.tarif_ora); return null; }
+function tarifeFolosite(sant){
+  var l=[], s=santier(sant); if(s && has(s.tarif_ora)) l.push(num(s.tarif_ora));
+  S.data.lucru.forEach(function(x){ if(x.santier===sant && x.tip!=='metru' && has(x.tarif_ora)) l.push(num(x.tarif_ora)); });
+  return l.filter(function(v,i){ return l.indexOf(v)===i; }).sort(function(a,b){ return a-b; });
+}
 function preturiFolosite(sant){
   var l=[], s=santier(sant); if(s && has(s.pret_metru)) l.push(num(s.pret_metru));
   S.data.lucru.forEach(function(x){ if(x.santier===sant && x.tip==='metru' && has(x.pret_metru)) l.push(num(x.pret_metru)); });
@@ -303,8 +310,8 @@ function preturiFolosite(sant){
 function produsRand(r){
   var s=santier(r.santier); if(!s) return {v:0, lipsa:true};
   if(r.tip==='metru'){ var pm=pretMetru(r,s); if(pm==null) return {v:0,lipsa:true}; return {v:num(r.metri)*pm}; }
-  if(!has(s.tarif_ora)) return {v:0,lipsa:true};
-  return {v:num(r.ore)*num(s.tarif_ora)};
+  var to=tarifOra(r,s); if(to==null) return {v:0,lipsa:true};
+  return {v:num(r.ore)*to};
 }
 function costTotal(c){ return c? num(c.salarii)+num(c.contributii)+num(c.chirie)+num(c.carburant)+num(c.scule)+num(c.generale) : 0; }
 function grupuri(){
@@ -410,7 +417,7 @@ function viewLucru(){
     if(r.data!==last){ h+='<div class="day">'+esc(zi(r.data))+'</div>'; last=r.data; }
     var p=produsRand(r);
     h+='<div class="lr"><div class="item" role="button" tabindex="0" data-lucru="'+esc(r.id)+'"><div class="row"><div class="grow"><div class="t">'+esc(r.santier)+'</div>'+
-      '<div class="small muted num">'+nr(num(r.persoane))+'\u00a0pers. · '+nr(num(r.ore))+'\u00a0ore'+(r.tip==='metru'?' · '+nr(num(r.metri))+'\u00a0m²'+(pretMetru(r,santier(r.santier))!=null?' × '+eur(pretMetru(r,santier(r.santier))):''):'')+'</div></div>'+
+      '<div class="small muted num">'+nr(num(r.persoane))+'\u00a0pers. · '+nr(num(r.ore))+'\u00a0ore'+(r.tip==='metru'?' · '+nr(num(r.metri))+'\u00a0m²'+(pretMetru(r,santier(r.santier))!=null?' × '+eur(pretMetru(r,santier(r.santier))):''):(tarifOra(r,santier(r.santier))!=null?' × '+eur(tarifOra(r,santier(r.santier))):''))+'</div></div>'+
       '<div style="text-align:right"><span class="chip">'+(r.tip==='metru'?'la metru':'la oră')+'</span><div class="small num" style="margin-top:4px">'+(p.lipsa?'<span class="down">lipsă tarif</span>':eur(p.v))+'</div></div></div></div>'+
       '<button class="more" data-more-lucru="'+esc(r.id)+'" aria-label="Opțiuni pentru '+esc(r.santier)+'" aria-haspopup="menu"><span></span><span></span><span></span></button></div>';
   });
@@ -698,13 +705,21 @@ function formLucru(r){
     '<div class="field"><span>Cum se plătește</span><div class="seg" id="lTip"><button type="button" data-v="ora" class="'+(r.tip!=='metru'?'on':'')+'">La oră</button><button type="button" data-v="metru" class="'+(r.tip==='metru'?'on':'')+'">La metru</button></div></div>'+
     '<div class="two"><label class="field"><span>Persoane</span><input id="lPers" inputmode="numeric" value="'+esc(r.persoane)+'" placeholder="ex. 3"></label>'+
     '<label class="field"><span>Ore totale</span><input id="lOre" inputmode="decimal" value="'+esc(r.ore)+'" placeholder="ex. 24"></label></div>'+
+    '<div id="lOraF"><label class="field"><span>Preț pe oră €</span><input id="lTarif" inputmode="decimal" value="'+esc(virg(r.tarif_ora))+'" placeholder="din Setări"></label>'+
+    '<div class="chips hidden" id="lTarifC" style="margin:-4px 0 4px"></div></div>'+
     '<div class="two" id="lMetriF"><label class="field"><span>Metri făcuți (m²)</span><input id="lMetri" inputmode="decimal" value="'+esc(r.metri)+'" placeholder="ex. 60"></label>'+
     '<label class="field"><span>Preț pe m² €</span><input id="lPret" inputmode="decimal" list="lPretL" value="'+esc(virg(r.pret_metru))+'" placeholder="alege"></label></div>'+
     '<datalist id="lPretL"></datalist><div class="chips hidden" id="lPretC" style="margin:-4px 0 4px"></div>'+
     '<label class="field"><span>Notă (dacă e nevoie)</span><input id="lNota" value="'+esc(r.nota)+'"></label>'+
     '<div class="live" id="lLive"></div><div class="err" id="fErr"></div>'+
     '<div class="actions"><button class="btn primary block" id="lSave">Salvează</button>'+(nou?'':'<button class="btn danger block" id="lDel">Șterge</button>')+'<button class="btn block" id="lCancel">Renunță</button></div>');
-  var tip=r.tip==='metru'?'metru':'ora', pretAtins=has(r.pret_metru);
+  var tip=r.tip==='metru'?'metru':'ora', pretAtins=has(r.pret_metru), tarifAtins=has(r.tarif_ora);
+  function tarife(){
+    var l=tarifeFolosite(v('lSant'));
+    $('lTarifC').innerHTML=l.map(function(p){ return '<button type="button" data-p="'+p+'">'+eur(p)+'/oră</button>'; }).join('');
+    $('lTarifC').querySelectorAll('button').forEach(function(b){ b.onclick=function(){ $('lTarif').value=virg(b.dataset.p); tarifAtins=true; upd(); }; });
+    if(!tarifAtins){ var s=santier(v('lSant')); $('lTarif').value= s&&has(s.tarif_ora) ? virg(s.tarif_ora) : ''; }
+  }
   function preturi(){
     var l=preturiFolosite(v('lSant'));
     $('lPretL').innerHTML=l.map(function(p){ return '<option value="'+virg(p)+'">'; }).join('');
@@ -716,25 +731,30 @@ function formLucru(r){
   }
   function upd(){
     $('lMetriF').classList.toggle('hidden', tip!=='metru');
+    $('lOraF').classList.toggle('hidden', tip!=='ora');
     $('lPretC').classList.toggle('hidden', tip!=='metru' || !$('lPretC').children.length);
+    $('lTarifC').classList.toggle('hidden', tip!=='ora' || $('lTarifC').children.length<2);
     $('lPretC').querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', num(b.dataset.p)===num(v('lPret'))); });
-    var x={santier:v('lSant'),tip:tip,ore:v('lOre'),metri:v('lMetri'),pret_metru:v('lPret')}, p=produsRand(x), s=santier(x.santier);
-    var reg = tip==='metru' ? (has(x.pret_metru)? nr(num(x.metri))+' m² × '+eur(num(x.pret_metru)) : '') : (s&&has(s.tarif_ora)? nr(num(x.ore))+' ore × '+eur(num(s.tarif_ora)) : '');
-    $('lLive').innerHTML='<div class="row"><span class="muted">Produs</span><b class="num">'+(p.lipsa?'<span class="down">'+(tip==='metru'?'pune prețul pe m²':'lipsă tarif în Setări')+'</span>':eur(p.v))+'</b></div>'+(reg?'<div class="small muted num">'+reg+'</div>':'');
+    $('lTarifC').querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', num(b.dataset.p)===num(v('lTarif'))); });
+    var x={santier:v('lSant'),tip:tip,ore:v('lOre'),metri:v('lMetri'),pret_metru:v('lPret'),tarif_ora:v('lTarif')}, p=produsRand(x);
+    var reg = tip==='metru' ? (has(x.pret_metru)? nr(num(x.metri))+' m² × '+eur(num(x.pret_metru)) : '') : (has(x.tarif_ora)? nr(num(x.ore))+' ore × '+eur(num(x.tarif_ora)) : '');
+    $('lLive').innerHTML='<div class="row"><span class="muted">Produs</span><b class="num">'+(p.lipsa?'<span class="down">'+(tip==='metru'?'pune prețul pe m²':'pune prețul pe oră')+'</span>':eur(p.v))+'</b></div>'+(reg?'<div class="small muted num">'+reg+'</div>':'');
   }
   $('lTip').querySelectorAll('button').forEach(function(b){ b.onclick=function(){ tip=b.dataset.v; $('lTip').querySelectorAll('button').forEach(function(o){ o.classList.toggle('on',o===b); }); upd(); }; });
   ['lOre','lMetri'].forEach(function(id){ $(id).oninput=upd; $(id).onchange=upd; });
-  $('lSant').onchange=function(){ preturi(); upd(); };
+  $('lSant').onchange=function(){ preturi(); tarife(); upd(); };
   $('lPret').oninput=function(){ pretAtins=true; upd(); };
-  preturi(); upd();
+  $('lTarif').oninput=function(){ tarifAtins=true; upd(); };
+  preturi(); tarife(); upd();
   $('lCancel').onclick=inchide;
   $('lSave').onclick=function(){
     var e='';
     if(!v('lData')) e='Pune data.'; else if(!v('lSant')) e='Alege șantierul.'; else if(!(num(v('lPers'))>0)) e='Pune câte persoane au lucrat.';
     else if(!(num(v('lOre'))>0)) e='Pune orele totale.'; else if(tip==='metru' && !(num(v('lMetri'))>0)) e='Pune metrii făcuți.';
     else if(tip==='metru' && !(num(v('lPret'))>0)) e='Pune prețul pe m².';
+    else if(tip==='ora' && !(num(v('lTarif'))>0)) e='Pune prețul pe oră.';
     if(e){ $('fErr').textContent=e; return; }
-    salvare('Lucru',{id:r.id||'',data:v('lData'),santier:v('lSant'),tip:tip,persoane:String(num(v('lPers'))),ore:String(num(v('lOre'))),metri:tip==='metru'?String(num(v('lMetri'))):'',pret_metru:tip==='metru'?String(num(v('lPret'))):'',nota:v('lNota')},this);
+    salvare('Lucru',{id:r.id||'',data:v('lData'),santier:v('lSant'),tip:tip,persoane:String(num(v('lPers'))),ore:String(num(v('lOre'))),metri:tip==='metru'?String(num(v('lMetri'))):'',pret_metru:tip==='metru'?String(num(v('lPret'))):'',tarif_ora:tip==='ora'?String(num(v('lTarif'))):'',nota:v('lNota')},this);
   };
   if(!nou) $('lDel').onclick=function(){ eliminaPontaj(r); };
 }
