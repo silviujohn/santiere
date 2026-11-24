@@ -70,6 +70,9 @@ header.top h1{font-size:28px;line-height:1.15;margin:0;font-weight:700;letter-sp
 /* rândul + butonul ⋯ alături, în afara dreptunghiului */
 .lr{display:flex;align-items:center;gap:6px;margin:8px 0}
 .lr .item{flex:1;min-width:0;margin:0}
+.mv{display:flex;flex-direction:column;gap:4px}
+.mv .pbtn{width:40px;height:40px;font-size:18px}
+.mv .pbtn[disabled]{opacity:.3}
 .more{flex:none;width:44px;height:44px;border:0;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:3px;padding:0;border-radius:22px}
 .more span{width:5px;height:5px;border-radius:50%;background:var(--navy-t);opacity:.55;transition:opacity .15s ease}
 .more:hover span,.more:focus-visible span{opacity:1}
@@ -303,6 +306,28 @@ function store(k,v){ try{ if(v==null) localStorage.removeItem(k); else localStor
 function load(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
 
 /* =================== calcule =================== */
+/* Ordinea șantierelor (Silviu, 24.11.2026): după coloana „ordine”; cele oprite la coadă. */
+function santiereOrd(){
+  return (S.data.santiere||[]).slice().sort(function(a,b){
+    var oa=a.activ==='nu'?1:0, ob=b.activ==='nu'?1:0; if(oa!==ob) return oa-ob;
+    var na=has(a.ordine)?num(a.ordine):9999, nb=has(b.ordine)?num(b.ordine):9999; if(na!==nb) return na-nb;
+    return String(a.nume).localeCompare(String(b.nume));
+  });
+}
+function mutaSantier(id, dir){
+  var active=santiereOrd().filter(function(s){ return s.activ!=='nu'; });
+  var i=active.findIndex(function(s){ return s.id===id; }), j=i+dir;
+  if(i<0 || j<0 || j>=active.length) return;
+  var t=active[i]; active[i]=active[j]; active[j]=t;
+  // renumerotăm doar ce s-a schimbat, ca să plece cât mai puține salvări
+  active.forEach(function(s,k){ if(num(s.ordine)!==k+1){ var c=JSON.parse(JSON.stringify(s)); c.ordine=String(k+1); delete c.cine; delete c.modificat; salvareTacita('Santiere',c); } });
+  render();
+}
+function salvareTacita(foaie, rand){
+  var r=JSON.parse(JSON.stringify(rand)); r.cine=S.rol==='silviu'?'Silviu':'Cătălin'; r.modificat=new Date().toISOString();
+  var l=S.data[cheieLista(foaie)], i=l.findIndex(function(x){ return x.id===r.id; }); if(i>=0) l[i]=r; else l.push(r);
+  S.data.actualizat=r.modificat; pastreaza(); trimite('salveaza',{foaie:foaie,rand:rand});
+}
 function santier(nume){ var l=(S.data&&S.data.santiere)||[]; for(var i=0;i<l.length;i++) if(l[i].nume===nume) return l[i]; return null; }
 /* La metru, prețul se alege la fiecare pontaj (Silviu, 24.11.2026); dacă lipsește, se ia prețul implicit al șantierului. */
 function pretMetru(r,s){ if(has(r.pret_metru)) return num(r.pret_metru); if(s && has(s.pret_metru)) return num(s.pret_metru); return null; }
@@ -488,7 +513,7 @@ function viewRezumat(){
     }
     h+='</table></div>';
   } else {
-    var names=S.data.santiere.map(function(s){ return s.nume; });
+    var names=santiereOrd().map(function(s){ return s.nume; });
     g.forEach(function(x){ if(names.indexOf(x.santier)<0) names.push(x.santier); });
     var TOATE='__toate';
     if(!S.rezSantier || (S.rezSantier!==TOATE && names.indexOf(S.rezSantier)<0)) S.rezSantier=TOATE;
@@ -522,11 +547,15 @@ function viewRezumat(){
 }
 
 function viewSetari(){
-  var h='<div class="day">Șantiere și tarife</div>';
-  S.data.santiere.forEach(function(s){
-    h+='<button class="item" data-santier="'+esc(s.id)+'"><div class="row"><div class="grow"><div class="t">'+esc(s.nume)+(s.activ==='nu'?' <span class="chip">oprit</span>':'')+'</div>'+
+  var h='<div class="day">Șantiere și tarife</div><div class="small muted" style="margin:-2px 4px 6px">Ordinea de aici e ordinea din tot softul. Mută cu săgețile; cele oprite merg singure la coadă.</div>';
+  var ord=santiereOrd(), active=ord.filter(function(s){ return s.activ!=='nu'; });
+  ord.forEach(function(s){
+    var ia=active.indexOf(s);
+    h+='<div class="lr"><button class="item" data-santier="'+esc(s.id)+'"><div class="row"><div class="grow"><div class="t">'+esc(s.nume)+(s.activ==='nu'?' <span class="chip">oprit</span>':'')+'</div>'+
       '<div class="small muted num">'+(has(s.tarif_ora)?eur(num(s.tarif_ora))+'/oră':'fără tarif la oră')+' · '+(has(s.pret_metru)?eur(num(s.pret_metru))+'/m²':'fără preț la metru')+'</div>'+
-      '</div></div></button>';
+      '</div></div></button>'+
+      (ia>=0?'<div class="mv"><button class="pbtn pen" data-mv="-1" data-mvid="'+esc(s.id)+'" aria-label="Mută '+esc(s.nume)+' mai sus"'+(ia===0?' disabled':'')+'>↑</button>'+
+        '<button class="pbtn pen" data-mv="1" data-mvid="'+esc(s.id)+'" aria-label="Mută '+esc(s.nume)+' mai jos"'+(ia===active.length-1?' disabled':'')+'>↓</button></div>':'')+'</div>';
   });
   var gl=generaleLuna(todayIso().slice(0,7));
   h+='<div class="day">Cheltuieli generale lunare</div><div class="card">'+
@@ -585,6 +614,7 @@ function bindMain(){
     var val=num(v('gLun')); var luna=todayIso().slice(0,7);
     salvare('Setari',{id:'generale_lunare_'+luna,valoare:String(val),nota:'Cheltuieli generale pe lună, valabile din '+luna},gs,'Salvat: '+eur(val)+' pe lună');
   };
+  m.querySelectorAll('[data-mvid]').forEach(function(b){ b.onclick=function(e){ e.stopPropagation(); mutaSantier(b.dataset.mvid, +b.dataset.mv); }; });
   m.querySelectorAll('[data-santier]').forEach(function(b){ b.onclick=function(){ formSantier(S.data.santiere.find(function(s){ return s.id===b.dataset.santier; })); }; });
   m.querySelectorAll('[data-rez]').forEach(function(b){ b.onclick=function(){ S.rez=b.dataset.rez; render(); }; });
   m.querySelectorAll('[data-sant]').forEach(function(b){ b.onclick=function(){ S.rezSantier=b.dataset.sant; render(); }; });
@@ -641,7 +671,7 @@ $('back').onclick=inchide;
 document.addEventListener('keydown',function(e){ if(e.key==='Escape' && !$('sheet').classList.contains('hidden')) inchide(); });
 
 function optSantiere(sel){
-  var l=S.data.santiere.filter(function(s){ return s.activ!=='nu' || s.nume===sel; });
+  var l=santiereOrd().filter(function(s){ return s.activ!=='nu' || s.nume===sel; });
   var h=l.map(function(s){ return '<option'+(s.nume===sel?' selected':'')+'>'+esc(s.nume)+'</option>'; }).join('');
   if(sel && !santier(sel)) h+='<option selected>'+esc(sel)+'</option>';
   return h;
@@ -709,7 +739,7 @@ function v(id){ var e=$(id); return e? e.value.trim() : ''; }
 
 /* ---- Lucru ---- */
 function formLucru(r){
-  var nou=!r; r=r||{data:todayIso(),santier:(S.data.santiere.find(function(s){return s.activ!=='nu';})||{}).nume||'',tip:'ora',persoane:'',ore:'',metri:'',nota:''};
+  var nou=!r; r=r||{data:todayIso(),santier:(santiereOrd().find(function(s){return s.activ!=='nu';})||{}).nume||'',tip:'ora',persoane:'',ore:'',metri:'',nota:''};
   deschide('<h2>'+(nou?'Cine a lucrat și cât':'Modifică ziua')+'</h2>'+
     '<label class="field"><span>Data</span><input id="lData" type="date" value="'+esc(r.data)+'"></label>'+
     '<label class="field"><span>Șantier</span><select id="lSant">'+optSantiere(r.santier)+'</select></label>'+
@@ -802,7 +832,7 @@ var CAMP_COST=[
 function virg(x){ return has(x)? String(x).replace('.',',') : ''; }
 function costGol(data,sant){ return {data:data,santier:sant,salarii:'',contributii:'',chirie:'',carburant:'',scule:'',generale:'',generale_desc:'',nota:''}; }
 function formCost(_, data, sant){
-  data=data||todayIso(); sant=sant||(S.data.santiere.find(function(s){return s.activ!=='nu';})||{}).nume||'';
+  data=data||todayIso(); sant=sant||(santiereOrd().find(function(s){return s.activ!=='nu';})||{}).nume||'';
   var c=costPentru(data,sant), nou=!c; c=c||costGol(data,sant);
   var contribManual=!!(c.id && has(c.contributii) && num(c.contributii)!==contribCalc(c.data,c.santier));
   deschide('<h2>Produs, cheltuieli, rămas</h2>'+
@@ -890,7 +920,7 @@ function formSantier(s){
     if(dubla){ $('fErr').textContent='Există deja un șantier cu numele ăsta.'; return; }
     if(!has(v('sOra')) && !has(v('sMetru'))){ $('fErr').textContent='Pune cel puțin un tarif (la oră sau la metru).'; return; }
     function n2(id){ return has(v(id))? String(num(v(id))) : ''; }
-    salvare('Santiere',{id:s.id||'',nume:n,tarif_ora:n2('sOra'),pret_metru:n2('sMetru'),tinta_ora:s.tinta_ora||'',galben_de_la:s.galben_de_la||'',activ:v('sActiv'),contrib_ora:n2('sCon')},this);
+    salvare('Santiere',{id:s.id||'',nume:n,tarif_ora:n2('sOra'),pret_metru:n2('sMetru'),tinta_ora:s.tinta_ora||'',galben_de_la:s.galben_de_la||'',activ:v('sActiv'),contrib_ora:n2('sCon'),ordine: has(s.ordine)? s.ordine : String(S.data.santiere.reduce(function(m,o){ return Math.max(m, num(o.ordine)); },0)+1)},this);
   };
   if(!nou && !blocat) $('sDel').onclick=function(){ stergere('Santiere',s.id,this,'Ștergi șantierul '+s.nume+'?'); };
 }
