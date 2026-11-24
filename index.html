@@ -530,6 +530,7 @@ function viewRezumat(){
     var y=+S.rezLuna.slice(0,4), mo=+S.rezLuna.slice(5,7);
     h+='<div class="nav"><button class="icon" data-nav="-1" aria-label="Luna dinainte">‹</button><div class="lbl">'+LUNI[mo-1]+' '+y+'</div><button class="icon" data-nav="1" aria-label="Luna următoare">›</button></div>';
     var luna=g.filter(function(x){ return x.data.slice(0,7)===S.rezLuna; });
+    h+='<button class="btn block xls" data-act="excel" style="margin:4px 0 12px">⬇︎ Descarcă Excel · '+LUNI[mo-1]+' '+y+'</button>';
     if(S.rezSantier===TOATE){
       var tot=totaluri(luna), genL=generaleLuna(S.rezLuna);
       h+=cardTotal(tot,'Total final, toate șantierele · '+LUNI[mo-1], genL);
@@ -636,12 +637,88 @@ function bindMain(){
     else if(S.rez==='sapt') S.rezSapt=addDays(S.rezSapt,7*n);
     else { var y=+S.rezLuna.slice(0,4), mo=+S.rezLuna.slice(5,7)-1+n; y+=Math.floor(mo/12); mo=((mo%12)+12)%12; S.rezLuna=y+'-'+pad(mo+1); }
     render(); }; });
+  if(m.querySelector('[data-act="excel"]')) incarcaXlsx().catch(function(){});   // pregătită dinainte, ca să meargă „Trimite” pe iPhone
   m.querySelectorAll('[data-act]').forEach(function(b){ b.onclick=function(){
     var a=b.dataset.act;
     if(a==='tot'){ S.arataTot=true; render(); }
     else if(a==='iesi'){ uita(); arata('vLogin'); }
     else if(a==='parole') formParole();
+    else if(a==='excel') descarcaExcel(S.rezLuna, b);
   }; });
+}
+
+/* =================== Excel pe lună (Silviu, 24.11.2026: „ABSOLUT DA, BUTON”) ===================
+   Un fișier .xlsx cu luna aleasă, ca să-l încarce Cătălin în Claude sau Grok.
+   Foi: Citește-mă · Rezumat · Pe zile · Pontaj. Cifrele sunt numere (nu text), ca să se poată calcula. */
+var XLSX_URL='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+function incarcaXlsx(){
+  if(window.XLSX) return Promise.resolve(window.XLSX);
+  if(incarcaXlsx._p) return incarcaXlsx._p;
+  incarcaXlsx._p=new Promise(function(ok,nu){ var s=document.createElement('script'); s.src=XLSX_URL; s.onload=function(){ window.XLSX?ok(window.XLSX):nu(new Error('Librăria Excel nu a pornit.')); }; s.onerror=function(){ incarcaXlsx._p=null; nu(new Error('Nu pot încărca Excelul. Verifică internetul.')); }; document.head.appendChild(s); });
+  return incarcaXlsx._p;
+}
+function r2(n){ return n==null? null : Math.round(n*100)/100; }
+function dataRo(s){ var p=String(s).split('-'); return p[2]+'.'+p[1]+'.'+p[0]; }
+function foaieExcel(luna){
+  var y=+luna.slice(0,4), mo=+luna.slice(5,7), numeLuna=LUNI[mo-1]+' '+y;
+  var g=grupuri().filter(function(x){ return x.data.slice(0,7)===luna; }).sort(function(a,b){ return a.data<b.data?-1:a.data>b.data?1:a.santier.localeCompare(b.santier); });
+  var tot=totaluri(g), gen=generaleLuna(luna), names=santiereOrd().map(function(s){ return s.nume; });
+  g.forEach(function(x){ if(names.indexOf(x.santier)<0) names.push(x.santier); });
+  // Rezumat
+  var rez=[['Rezumat '+numeLuna+' — toate șantierele'],[],['Șantier','Ore lucrate','Metri (m²)','Produs €','Cheltuieli șantier €','Rămas €','Rămas pe oră €']];
+  names.forEach(function(n){ var t=totaluri(g.filter(function(x){ return x.santier===n; })); if(t.ore>0||t.cheltuieli>0) rez.push([n,r2(t.ore),r2(t.metri),r2(t.produs),r2(t.cheltuieli),r2(t.ramas),r2(t.peOra)]); });
+  rez.push(['TOTAL șantiere',r2(tot.ore),r2(tot.metri),r2(tot.produs),r2(tot.cheltuieli),r2(tot.ramas),r2(tot.peOra)]);
+  rez.push([]); rez.push(['Cheltuieli generale ale lunii €',r2(gen)]);
+  rez.push(['Rămas final, după generale €',r2(tot.ramas-gen)]);
+  rez.push(['Rămas final pe oră €', tot.ore>0? r2((tot.ramas-gen)/tot.ore) : null]);
+  // Pe zile
+  var zile=[['Data','Ziua','Șantier','Ore','Metri (m²)','Produs €','Salarii €','Contribuții €','Chirie / cazare €','Carburant și autostradă €','Scule și echipament de protecție €','Cheltuieli generale €','Descriere generale','Total cheltuieli €','Rămas €','Rămas pe oră €','Semafor','Notă']];
+  g.forEach(function(x){ var c=x.cost||{}, s=semafor(x);
+    zile.push([dataRo(x.data),ZILE[parseIso(x.data).getDay()],x.santier,r2(x.ore),x.areMetru?r2(x.metri):null,x.lipsaTarif?null:r2(x.produs),
+      has(c.salarii)?r2(num(c.salarii)):null,has(c.contributii)?r2(num(c.contributii)):null,has(c.chirie)?r2(num(c.chirie)):null,has(c.carburant)?r2(num(c.carburant)):null,has(c.scule)?r2(num(c.scule)):null,has(c.generale)?r2(num(c.generale)):null,c.generale_desc||'',
+      x.cost?r2(x.cheltuieli):null, x.cost?r2(x.ramas):null, x.cost&&x.peOra!=null?r2(x.peOra):null, s?SEM_TXT[s]:(x.cost?'':'cheltuieli necompletate'), c.nota||'']); });
+  // Pontaj
+  var pon=[['Data','Șantier','Tip','Persoane','Ore','Metri (m²)','Preț folosit €','Unitate','Produs €','Notă','Trecut de']];
+  S.data.lucru.filter(function(r){ return String(r.data).slice(0,7)===luna; }).sort(function(a,b){ return a.data<b.data?-1:a.data>b.data?1:a.santier.localeCompare(b.santier); }).forEach(function(r){
+    var s=santier(r.santier), met=r.tip==='metru', pr=met?pretMetru(r,s):tarifOra(r,s), p=produsRand(r);
+    pon.push([dataRo(r.data),r.santier,met?'la metru':'la oră',r2(num(r.persoane)),r2(num(r.ore)),met?r2(num(r.metri)):null,r2(pr),met?'€/m²':'€/oră',p.lipsa?null:r2(p.v),r.nota||'',r.cine||'']); });
+  // Citește-mă (pentru Claude / Grok)
+  var cit=[['Rapoarte șantiere — '+numeLuna],[],
+    ['Ce este','Ore, metri, produs, cheltuieli și rămas pe fiecare zi și șantier, din softul de pontaj al lui Cătălin.'],
+    ['Descărcat la',actualizatText(S.data.actualizat).replace(/^Actualizat:\s*/,'')+' (ultima salvare din soft)'],
+    ['Foaia Rezumat','Totalul lunii pe fiecare șantier și totalul final, după cheltuielile generale ale lunii.'],
+    ['Foaia Pe zile','Un rând pe zi și șantier: produs, fiecare cheltuială, rămas și rămas pe oră.'],
+    ['Foaia Pontaj','Un rând pe fiecare pontaj: persoane, ore, metri și prețul folosit.'],
+    ['Produs','Ore × tarif pe oră, sau metri × preț pe m² (prețul convenit în ziua aceea).'],
+    ['Rămas','Produs minus cheltuielile șantierului din ziua aceea.'],
+    ['Rămas pe oră','Rămas împărțit la orele lucrate.'],
+    ['Semafor la oră','Peste 25 € pe oră = peste țintă · 15–25 € = aproape · sub 15 € = sub țintă.'],
+    ['Semafor la metru','Peste 35 € pe oră = peste țintă · 25–35 € = aproape · sub 25 € = sub țintă.'],
+    ['Celule goale','Cheltuieli necompletate încă sau tarif lipsă; nu înseamnă zero.']];
+  return {nume:numeLuna, foi:[['Citește-mă',cit],['Rezumat',rez],['Pe zile',zile],['Pontaj',pon]], gol:!g.length};
+}
+function descarcaExcel(luna, btn){
+  var f=foaieExcel(luna);
+  if(f.gol){ toast('Nimic trecut în '+f.nume+'.'); return; }
+  var txt=btn.textContent; btn.disabled=true; btn.textContent='Se pregătește Excelul…';
+  incarcaXlsx().then(function(X){
+    var wb=X.utils.book_new();
+    f.foi.forEach(function(p){ var ws=X.utils.aoa_to_sheet(p[1]);
+      var w=[]; p[1].forEach(function(row){ row.forEach(function(c,i){ var l=c==null?0:String(c).length; w[i]=Math.min(60,Math.max(w[i]||8,l+2)); }); });
+      ws['!cols']=w.map(function(x){ return {wch:x}; }); X.utils.book_append_sheet(wb,ws,p[0]); });
+    var nume='santiere-'+luna+'.xlsx';
+    var out=X.write(wb,{bookType:'xlsx',type:'array'});
+    var blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    var file=null; try{ file=new File([blob],nume,{type:blob.type}); }catch(e){}
+    if(file && navigator.canShare && navigator.canShare({files:[file]})){
+      return navigator.share({files:[file],title:'Șantiere '+f.nume}).catch(function(e){ if(e && e.name==='AbortError') return; descarca(blob,nume); });
+    }
+    descarca(blob,nume);
+  }).catch(function(e){ toast(errText(e)); }).then(function(){ btn.disabled=false; btn.textContent=txt; });
+}
+function descarca(blob,nume){
+  var u=URL.createObjectURL(blob), a=document.createElement('a'); a.href=u; a.download=nume; document.body.appendChild(a); a.click();
+  setTimeout(function(){ a.remove(); URL.revokeObjectURL(u); },4000); toast('Excelul '+nume+' a fost descărcat');
 }
 
 /* =================== norișorul cu opțiuni (⋯) =================== */
