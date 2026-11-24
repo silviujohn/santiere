@@ -293,9 +293,16 @@ function load(k){ try{ return localStorage.getItem(k); }catch(e){ return null; }
 
 /* =================== calcule =================== */
 function santier(nume){ var l=(S.data&&S.data.santiere)||[]; for(var i=0;i<l.length;i++) if(l[i].nume===nume) return l[i]; return null; }
+/* La metru, prețul se alege la fiecare pontaj (Silviu, 24.11.2026); dacă lipsește, se ia prețul implicit al șantierului. */
+function pretMetru(r,s){ if(has(r.pret_metru)) return num(r.pret_metru); if(s && has(s.pret_metru)) return num(s.pret_metru); return null; }
+function preturiFolosite(sant){
+  var l=[], s=santier(sant); if(s && has(s.pret_metru)) l.push(num(s.pret_metru));
+  S.data.lucru.forEach(function(x){ if(x.santier===sant && x.tip==='metru' && has(x.pret_metru)) l.push(num(x.pret_metru)); });
+  return l.filter(function(v,i){ return l.indexOf(v)===i; }).sort(function(a,b){ return a-b; });
+}
 function produsRand(r){
   var s=santier(r.santier); if(!s) return {v:0, lipsa:true};
-  if(r.tip==='metru'){ if(!has(s.pret_metru)) return {v:0,lipsa:true}; return {v:num(r.metri)*num(s.pret_metru)}; }
+  if(r.tip==='metru'){ var pm=pretMetru(r,s); if(pm==null) return {v:0,lipsa:true}; return {v:num(r.metri)*pm}; }
   if(!has(s.tarif_ora)) return {v:0,lipsa:true};
   return {v:num(r.ore)*num(s.tarif_ora)};
 }
@@ -403,7 +410,7 @@ function viewLucru(){
     if(r.data!==last){ h+='<div class="day">'+esc(zi(r.data))+'</div>'; last=r.data; }
     var p=produsRand(r);
     h+='<div class="lr"><div class="item" role="button" tabindex="0" data-lucru="'+esc(r.id)+'"><div class="row"><div class="grow"><div class="t">'+esc(r.santier)+'</div>'+
-      '<div class="small muted num">'+nr(num(r.persoane))+'\u00a0pers. · '+nr(num(r.ore))+'\u00a0ore'+(r.tip==='metru'?' · '+nr(num(r.metri))+'\u00a0m²':'')+'</div></div>'+
+      '<div class="small muted num">'+nr(num(r.persoane))+'\u00a0pers. · '+nr(num(r.ore))+'\u00a0ore'+(r.tip==='metru'?' · '+nr(num(r.metri))+'\u00a0m²'+(pretMetru(r,santier(r.santier))!=null?' × '+eur(pretMetru(r,santier(r.santier))):''):'')+'</div></div>'+
       '<div style="text-align:right"><span class="chip">'+(r.tip==='metru'?'la metru':'la oră')+'</span><div class="small num" style="margin-top:4px">'+(p.lipsa?'<span class="down">lipsă tarif</span>':eur(p.v))+'</div></div></div></div>'+
       '<button class="more" data-more-lucru="'+esc(r.id)+'" aria-label="Opțiuni pentru '+esc(r.santier)+'" aria-haspopup="menu"><span></span><span></span><span></span></button></div>';
   });
@@ -633,7 +640,12 @@ function idNou(){ try{ if(window.crypto && crypto.randomUUID) return crypto.rand
 function trimite(action, payload){
   INCURS++; arataSync();
   COADA = COADA.then(function(){ return call('api',S.token,action,payload); })
-    .then(function(d){ INCURS--; if(INCURS===0) primeste(d); arataSync(); })
+    .then(function(d){
+      INCURS--;
+      if(d && d.lucru){ if(INCURS===0) primeste(d); }          // răspuns complet (proba locală)
+      else if(d && d.actualizat && S.data){ S.data.actualizat=d.actualizat; pastreaza(); }  // răspuns scurt: ecranul e deja la zi
+      arataSync();
+    })
     .catch(function(e){ INCURS--; arataSync(); if(sesiune(e)) return; toast('Nu s-a salvat: '+errText(e)); reincarca().catch(function(){}); });
 }
 function arataSync(){ var u=$('upd'); if(!u||!S.data) return; u.textContent = INCURS>0 ? 'Se trimite…' : actualizatText(S.data.actualizat); }
@@ -686,27 +698,43 @@ function formLucru(r){
     '<div class="field"><span>Cum se plătește</span><div class="seg" id="lTip"><button type="button" data-v="ora" class="'+(r.tip!=='metru'?'on':'')+'">La oră</button><button type="button" data-v="metru" class="'+(r.tip==='metru'?'on':'')+'">La metru</button></div></div>'+
     '<div class="two"><label class="field"><span>Persoane</span><input id="lPers" inputmode="numeric" value="'+esc(r.persoane)+'" placeholder="ex. 3"></label>'+
     '<label class="field"><span>Ore totale</span><input id="lOre" inputmode="decimal" value="'+esc(r.ore)+'" placeholder="ex. 24"></label></div>'+
-    '<label class="field" id="lMetriF"><span>Metri făcuți (m²)</span><input id="lMetri" inputmode="decimal" value="'+esc(r.metri)+'" placeholder="ex. 60"></label>'+
+    '<div class="two" id="lMetriF"><label class="field"><span>Metri făcuți (m²)</span><input id="lMetri" inputmode="decimal" value="'+esc(r.metri)+'" placeholder="ex. 60"></label>'+
+    '<label class="field"><span>Preț pe m² €</span><input id="lPret" inputmode="decimal" list="lPretL" value="'+esc(virg(r.pret_metru))+'" placeholder="alege"></label></div>'+
+    '<datalist id="lPretL"></datalist><div class="chips hidden" id="lPretC" style="margin:-4px 0 4px"></div>'+
     '<label class="field"><span>Notă (dacă e nevoie)</span><input id="lNota" value="'+esc(r.nota)+'"></label>'+
     '<div class="live" id="lLive"></div><div class="err" id="fErr"></div>'+
     '<div class="actions"><button class="btn primary block" id="lSave">Salvează</button>'+(nou?'':'<button class="btn danger block" id="lDel">Șterge</button>')+'<button class="btn block" id="lCancel">Renunță</button></div>');
-  var tip=r.tip==='metru'?'metru':'ora';
+  var tip=r.tip==='metru'?'metru':'ora', pretAtins=has(r.pret_metru);
+  function preturi(){
+    var l=preturiFolosite(v('lSant'));
+    $('lPretL').innerHTML=l.map(function(p){ return '<option value="'+virg(p)+'">'; }).join('');
+    // butoane rapide cu prețurile folosite deja la șantierul ăsta
+    $('lPretC').innerHTML=l.map(function(p){ return '<button type="button" data-p="'+p+'">'+eur(p)+'/m²</button>'; }).join('');
+    $('lPretC').classList.toggle('hidden', tip!=='metru' || !l.length);
+    $('lPretC').querySelectorAll('button').forEach(function(b){ b.onclick=function(){ $('lPret').value=virg(b.dataset.p); pretAtins=true; upd(); }; });
+    if(!pretAtins){ var s=santier(v('lSant')); $('lPret').value= s&&has(s.pret_metru) ? virg(s.pret_metru) : ''; }
+  }
   function upd(){
     $('lMetriF').classList.toggle('hidden', tip!=='metru');
-    var x={santier:v('lSant'),tip:tip,ore:v('lOre'),metri:v('lMetri')}, p=produsRand(x), s=santier(x.santier);
-    var reg = tip==='metru' ? (s&&has(s.pret_metru)? nr(num(x.metri))+' m² × '+eur(num(s.pret_metru)) : '') : (s&&has(s.tarif_ora)? nr(num(x.ore))+' ore × '+eur(num(s.tarif_ora)) : '');
-    $('lLive').innerHTML='<div class="row"><span class="muted">Produs</span><b class="num">'+(p.lipsa?'<span class="down">lipsă tarif în Setări</span>':eur(p.v))+'</b></div>'+(reg?'<div class="small muted num">'+reg+'</div>':'');
+    $('lPretC').classList.toggle('hidden', tip!=='metru' || !$('lPretC').children.length);
+    $('lPretC').querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', num(b.dataset.p)===num(v('lPret'))); });
+    var x={santier:v('lSant'),tip:tip,ore:v('lOre'),metri:v('lMetri'),pret_metru:v('lPret')}, p=produsRand(x), s=santier(x.santier);
+    var reg = tip==='metru' ? (has(x.pret_metru)? nr(num(x.metri))+' m² × '+eur(num(x.pret_metru)) : '') : (s&&has(s.tarif_ora)? nr(num(x.ore))+' ore × '+eur(num(s.tarif_ora)) : '');
+    $('lLive').innerHTML='<div class="row"><span class="muted">Produs</span><b class="num">'+(p.lipsa?'<span class="down">'+(tip==='metru'?'pune prețul pe m²':'lipsă tarif în Setări')+'</span>':eur(p.v))+'</b></div>'+(reg?'<div class="small muted num">'+reg+'</div>':'');
   }
   $('lTip').querySelectorAll('button').forEach(function(b){ b.onclick=function(){ tip=b.dataset.v; $('lTip').querySelectorAll('button').forEach(function(o){ o.classList.toggle('on',o===b); }); upd(); }; });
-  ['lSant','lOre','lMetri'].forEach(function(id){ $(id).oninput=upd; $(id).onchange=upd; });
-  upd();
+  ['lOre','lMetri'].forEach(function(id){ $(id).oninput=upd; $(id).onchange=upd; });
+  $('lSant').onchange=function(){ preturi(); upd(); };
+  $('lPret').oninput=function(){ pretAtins=true; upd(); };
+  preturi(); upd();
   $('lCancel').onclick=inchide;
   $('lSave').onclick=function(){
     var e='';
     if(!v('lData')) e='Pune data.'; else if(!v('lSant')) e='Alege șantierul.'; else if(!(num(v('lPers'))>0)) e='Pune câte persoane au lucrat.';
     else if(!(num(v('lOre'))>0)) e='Pune orele totale.'; else if(tip==='metru' && !(num(v('lMetri'))>0)) e='Pune metrii făcuți.';
+    else if(tip==='metru' && !(num(v('lPret'))>0)) e='Pune prețul pe m².';
     if(e){ $('fErr').textContent=e; return; }
-    salvare('Lucru',{id:r.id||'',data:v('lData'),santier:v('lSant'),tip:tip,persoane:String(num(v('lPers'))),ore:String(num(v('lOre'))),metri:tip==='metru'?String(num(v('lMetri'))):'',nota:v('lNota')},this);
+    salvare('Lucru',{id:r.id||'',data:v('lData'),santier:v('lSant'),tip:tip,persoane:String(num(v('lPers'))),ore:String(num(v('lOre'))),metri:tip==='metru'?String(num(v('lMetri'))):'',pret_metru:tip==='metru'?String(num(v('lPret'))):'',nota:v('lNota')},this);
   };
   if(!nou) $('lDel').onclick=function(){ eliminaPontaj(r); };
 }
@@ -799,8 +827,9 @@ function formSantier(s){
   deschide('<h2>'+(nou?'Șantier nou':esc(s.nume))+'</h2>'+
     '<label class="field"><span>Nume'+(blocat?' (are deja zile trecute, nu se mai schimbă)':'')+'</span><input id="sNume" value="'+esc(s.nume)+'"'+(blocat?' disabled':'')+'></label>'+
     '<div class="two"><label class="field"><span>Tarif la oră €</span><input id="sOra" inputmode="decimal" value="'+esc(s.tarif_ora)+'"></label>'+
-    '<label class="field"><span>Preț la metru €/m²</span><input id="sMetru" inputmode="decimal" value="'+esc(s.pret_metru)+'"></label>'+
+    '<label class="field"><span>Preț la metru propus €/m²</span><input id="sMetru" inputmode="decimal" value="'+esc(virg(s.pret_metru))+'"></label>'+
     '</div>'+
+    '<div class="small muted" style="margin:-4px 4px 8px">La metru, prețul se alege la fiecare pontaj; acesta e doar cel propus.</div>'+
     '<label class="field"><span>Contribuții € pe oră lucrată</span><input id="sCon" inputmode="decimal" value="'+esc(virg(s.contrib_ora))+'"></label>'+
     '<div class="small muted" style="margin:-4px 4px 8px">După metoda lui Cătălin. Se înmulțește cu orele din pontaj.</div>'+
     '<label class="field"><span>Stare</span><select id="sActiv"><option value="da"'+(s.activ!=='nu'?' selected':'')+'>Activ</option><option value="nu"'+(s.activ==='nu'?' selected':'')+'>Oprit (nu mai apare în listă)</option></select></label>'+
