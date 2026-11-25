@@ -462,7 +462,21 @@ function totaluri(list){ var t={produs:0,cheltuieli:0,ramas:0,ore:0,metri:0,pers
 
 /* =================== pornire =================== */
 function arata(v){ ['vSetup','vLogin','vLoad','vApp'].forEach(function(id){ $(id).classList.toggle('hidden', id!==v); }); }
+/* Versiunea paginii. GitHub ține o copie veche până la ~10 minute; la fiecare pornire se verifică
+   pagina de pe server (fără copie) și, dacă e mai nouă, se încarcă singură. (Silviu, 25.11.2026: „dacă dau refresh nu merge”) */
+var VERSIUNE='2026-11-25-2350';
+function verificaVersiune(){
+  if(LOCAL || IN_GOOGLE || !window.fetch) return;
+  fetch(location.pathname+'?nv='+Date.now(),{cache:'no-store'}).then(function(r){ return r.ok? r.text() : ''; }).then(function(t){
+    var m=/var VERSIUNE='([^']+)'/.exec(t||''); if(!m || m[1]===VERSIUNE) return;
+    var gata=null; try{ gata=sessionStorage.getItem('santiereV'); }catch(e){}
+    if(gata===m[1]) return;                                   // o singură reîncărcare pe versiune, ca să nu se învârtă la nesfârșit
+    try{ sessionStorage.setItem('santiereV', m[1]); }catch(e){}
+    location.replace(location.pathname+'?v='+encodeURIComponent(m[1]));
+  }).catch(function(){});
+}
 function start(){
+  verificaVersiune();
   if(LOCAL) $('probe').classList.remove('hidden');
   var t=load('santiereToken'), cache=null;
   try{ cache=JSON.parse(load('santiereData')||'null'); }catch(e){ cache=null; }
@@ -533,7 +547,7 @@ function culoriNote(){
 })();
 $('bRefr').onclick=function(){ reimprospateaza(true); };
 // când revii în aplicație (alt tab, telefon deblocat), datele se iau din nou de pe server
-document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') reimprospateaza(false); });
+document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible'){ verificaVersiune(); reimprospateaza(false); } });
 $('bAdd').onclick=function(){ if(S.tab==='lucru') formLucru(null); else if(S.tab==='bani') formCost(null); else if(S.tab==='setari') formSantier(null); };
 
 /* =================== desenare =================== */
