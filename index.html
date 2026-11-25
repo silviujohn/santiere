@@ -321,6 +321,10 @@ function errText(e){ return String((e && e.message) ? e.message : (e||'Eroare'))
 
 /* =================== stare =================== */
 var S = { token:null, rol:null, data:null, tab:'lucru', rez:'zi', rezZi:todayIso(), rezSapt:monday(todayIso()), rezSantier:'', rezLuna:todayIso().slice(0,7), arataTot:false };
+/* După refresh rămâi pe pagina unde erai (Silviu, 25.11.2026: „dacă sunt pe costuri, să rămân pe costuri”). */
+var LOC_CHEI=['tab','rez','rezZi','rezSapt','rezSantier','rezLuna'];
+(function(){ try{ var l=JSON.parse(load('santiereLoc')||'null'); if(l && ['lucru','bani','rezumat','setari'].indexOf(l.tab)>=0) LOC_CHEI.forEach(function(k){ if(l[k]==null) return; if(/^rez(Zi|Sapt|Luna)$/.test(k) && l.salvat!==todayIso()) return; S[k]=l[k]; }); }catch(e){} })();   // datele alese în Rezumat se păstrează doar în aceeași zi
+function tineMinteLocul(){ var l={salvat:todayIso()}; LOC_CHEI.forEach(function(k){ l[k]=S[k]; }); store('santiereLoc', JSON.stringify(l)); }
 function store(k,v){ try{ if(v==null) localStorage.removeItem(k); else localStorage.setItem(k,v); }catch(e){} }
 function load(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
 
@@ -498,7 +502,7 @@ var TITLURI={lucru:'Cine a lucrat și cât',bani:'Produs, cheltuieli, rămas',re
 function render(){
   if(!S.data) return;
   document.querySelectorAll('nav.tabs button').forEach(function(b){ b.classList.toggle('on', b.dataset.tab===S.tab); });
-  culoriNote();
+  culoriNote(); tineMinteLocul();
   $('title').textContent=TITLURI[S.tab];
   arataSync();
   $('bAdd').classList.toggle('hidden', S.tab==='rezumat');
