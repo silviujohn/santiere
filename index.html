@@ -106,6 +106,15 @@ header.top h1{font-size:28px;line-height:1.15;margin:0;font-weight:700;letter-sp
 .btn.lipeste{margin:2px 0 6px}
 .card.lp{margin-bottom:10px} .card.lp.gresit{border:1px solid var(--red)}
 .field textarea{min-height:150px;padding:12px;resize:vertical}
+.oml{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.omr{display:flex;align-items:center;gap:8px;background:var(--card2);border-radius:14px;padding:4px 10px 4px 4px}
+.omr.on{background:var(--green-bg)}
+.field span.omc,.field .omb span{display:inline;margin:0;font-size:inherit;color:inherit}
+.field .omb .small{font-size:14px}
+.omb{flex:1;display:flex;align-items:center;gap:10px;min-height:44px;border:0;background:transparent;text-align:left;cursor:pointer;padding:4px}
+.omc{flex:none;width:26px;height:26px;border-radius:8px;border:2px solid var(--muted);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff}
+.omr.on .omc{background:var(--green);border-color:var(--green)}
+.field .omo,.omo{flex:none;width:64px;min-height:40px;padding:0 6px;border:1px solid var(--line);border-radius:10px;text-align:center;background:var(--card);font-size:16px}
 .nb.r{background:var(--red)} .nb.g{background:var(--green)}
 .ntxt{min-width:0;flex:1;font-size:15px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ntxt.nou{color:var(--text,inherit);font-weight:600}
@@ -262,17 +271,17 @@ var Mock = (function(){
   function sv(d){ try{ localStorage.setItem('mockSantiere', JSON.stringify(d)); }catch(e){} }
   function db(){ var d = ld(); if(!d){ d = {pw:null, lucru:[], costuri:[], santiere:[
       {id:'s1',nume:'Șantier A',tarif_ora:'30',pret_metru:'20',activ:'da',contrib_ora:'1'},
-      {id:'s2',nume:'Șantier B',tarif_ora:'30',pret_metru:'',activ:'da',contrib_ora:'1'}], act:''}; sv(d);} return d; }
-  function all(d, rol){ return {rol:rol, actualizat:d.act, lucru:d.lucru, costuri:d.costuri, santiere:d.santiere, setari:d.setari||[], linkFoaie: rol==='silviu'?'#':''}; }
+      {id:'s2',nume:'Șantier B',tarif_ora:'30',pret_metru:'',activ:'da',contrib_ora:'1'}], oameni:[{id:'o1',nume:'Om Unu',tarif_ora:'11',santier:'Șantier A',activ:'da'},{id:'o2',nume:'Om Doi',tarif_ora:'12',santier:'Șantier A',activ:'da'},{id:'o3',nume:'Om Trei',tarif_ora:'10',santier:'Șantier B',activ:'da'}], act:''}; sv(d);} return d; }
+  function all(d, rol){ return {rol:rol, actualizat:d.act, lucru:d.lucru, costuri:d.costuri, santiere:d.santiere, setari:d.setari||[], oameni:d.oameni||[], linkFoaie: rol==='silviu'?'#':''}; }
   return {
     stare:function(){ return {configurat:!!db().pw}; },
     configurare:function(s,c){ var d=db(); if(String(s).length<6||String(c).length<6) throw new Error('Fiecare parolă trebuie să aibă cel puțin 6 caractere.'); if(s===c) throw new Error('Cele două parole trebuie să fie diferite.'); d.pw={silviu:s,catalin:c}; sv(d); return {token:'silviu',rol:'silviu'}; },
     intrare:function(p){ var d=db(); if(d.pw&&p===d.pw.silviu) return {token:'silviu',rol:'silviu'}; if(d.pw&&p===d.pw.catalin) return {token:'catalin',rol:'catalin'}; throw new Error('Parolă greșită.'); },
     api:function(t,a,p){ var d=db(); if(t!=='silviu'&&t!=='catalin') throw new Error('SESIUNE');
       if(a==='toate') return all(d,t);
-      if(a==='salveaza'){ var k=p.foaie==='Lucru'?'lucru':p.foaie==='Costuri'?'costuri':p.foaie==='Setari'?'setari':'santiere'; if(!d[k]) d[k]=[]; var r=JSON.parse(JSON.stringify(p.rand)); if(!r.id) r.id=String(Date.now())+Math.random().toString(36).slice(2); r.cine=t==='silviu'?'Silviu':'Cătălin'; r.modificat=new Date().toISOString(); var i=d[k].findIndex(function(x){return x.id===r.id;}); if(i>=0) d[k][i]=r; else d[k].push(r); }
+      if(a==='salveaza'){ var k=p.foaie==='Lucru'?'lucru':p.foaie==='Costuri'?'costuri':p.foaie==='Setari'?'setari':p.foaie==='Oameni'?'oameni':'santiere'; if(!d[k]) d[k]=[]; var r=JSON.parse(JSON.stringify(p.rand)); if(!r.id) r.id=String(Date.now())+Math.random().toString(36).slice(2); r.cine=t==='silviu'?'Silviu':'Cătălin'; r.modificat=new Date().toISOString(); var i=d[k].findIndex(function(x){return x.id===r.id;}); if(i>=0) d[k][i]=r; else d[k].push(r); }
       else if(a==='citit'){ var eu=t==='silviu'?'Silviu':'Cătălin'; (p.foaie==='Costuri'?d.costuri:d.lucru).forEach(function(x){ var de=x.nota_de||(x.nota?x.cine:''); if(x.id===p.id && de && de!==eu) x.nota_citita='da'; }); }
-      else if(a==='sterge'){ var k2=p.foaie==='Lucru'?'lucru':p.foaie==='Costuri'?'costuri':p.foaie==='Setari'?'setari':'santiere'; if(!d[k2]) d[k2]=[]; d[k2]=d[k2].filter(function(x){return x.id!==p.id;}); }
+      else if(a==='sterge'){ var k2=p.foaie==='Lucru'?'lucru':p.foaie==='Costuri'?'costuri':p.foaie==='Setari'?'setari':p.foaie==='Oameni'?'oameni':'santiere'; if(!d[k2]) d[k2]=[]; d[k2]=d[k2].filter(function(x){return x.id!==p.id;}); }
       else if(a==='parole'){ if(t!=='silviu') throw new Error('Doar Silviu poate schimba parolele.'); if(p.silviu) d.pw.silviu=p.silviu; if(p.catalin) d.pw.catalin=p.catalin; sv(d); return {ok:true,iesit:true}; }
       d.act=new Date().toISOString(); sv(d); return all(d,t); }
   };
@@ -426,11 +435,17 @@ function parteFixa(data, persoane, ore){
 /* cheltuielile unei zile: ce e scris în Costuri + partea fixă (chiria / carburantul de mână înlocuiesc partea automată) */
 function cheltuieliZi(x){
   var c=x.cost||{}, p=parteFixa(x.data, x.persoane, x.ore);
+  /* salariile și contribuțiile se calculează singure din pontaj (oamenii bifați × tariful lor; orele × contribuția pe oră);
+     ce e scris de mână la Costuri are întâietate */
+  var salAuto = !(has(c.salarii) && num(c.salarii)>0) && areOameniZi(x.data, x.santier);
+  var sal = salAuto ? salariiZi(x.data, x.santier) : num(c.salarii);
+  var conAuto = !has(c.contributii) && (salAuto || !!x.cost);
+  var con = has(c.contributii) ? num(c.contributii) : (conAuto ? contribCalc(x.data, x.santier) : 0);
   var chirie = has(c.chirie) && (num(c.chirie)>0 || !p.areCazare) ? num(c.chirie) : p.cazare;
   var carb = has(c.carburant) && (num(c.carburant)>0 || !p.areCarburant) ? num(c.carburant) : p.carburant;
-  return { salarii:num(c.salarii), contributii:num(c.contributii), chirie:chirie, carburant:carb, scule:num(c.scule), generale:num(c.generale),
+  return { salarii:sal, contributii:con, salAuto:salAuto, conAuto:conAuto, chirie:chirie, carburant:carb, scule:num(c.scule), generale:num(c.generale),
            fixeBirou:p.general, chirieAuto:!(has(c.chirie)&&num(c.chirie)>0)&&p.areCazare, carbAuto:!(has(c.carburant)&&num(c.carburant)>0)&&p.areCarburant,
-           total: num(c.salarii)+num(c.contributii)+chirie+carb+num(c.scule)+num(c.generale)+p.general };
+           total: sal+con+chirie+carb+num(c.scule)+num(c.generale)+p.general };
 }
 function grupuri(){
   var m={}, d=S.data; BARA={};
@@ -439,11 +454,11 @@ function grupuri(){
     var p=produsRand(r); x.produs+=p.v; if(p.lipsa) x.lipsaTarif=true; if(r.tip==='metru') x.areMetru=true; });
   d.costuri.forEach(function(c){ var x=g(c.data,c.santier); x.cost=c; });
   // doar zilele cu pontaj: cheltuieli fără pontaj nu mai apar nicăieri (Silviu, 24.11.2026)
-  var arr=Object.keys(m).filter(function(k){ return m[k].lucru.length>0; }).map(function(k){ var x=m[k]; x.det=cheltuieliZi(x); x.cheltuieli=x.det.total; x.ramas=x.produs-x.cheltuieli; x.peOra=x.ore>0? x.ramas/x.ore : null; return x; });
+  var arr=Object.keys(m).filter(function(k){ return m[k].lucru.length>0; }).map(function(k){ var x=m[k]; x.det=cheltuieliZi(x); x.cheltuieli=x.det.total; x.areCh=!!x.cost || x.det.salAuto; x.ramas=x.produs-x.cheltuieli; x.peOra=x.ore>0? x.ramas/x.ore : null; return x; });
   arr.sort(function(a,b){ return a.data<b.data?1:a.data>b.data?-1:a.santier.localeCompare(b.santier); });
   // tendință: față de ziua anterioară a aceluiași șantier
   var ultim={};
-  arr.slice().reverse().forEach(function(x){ var p=ultim[x.santier]; if(p && p.peOra!=null && x.peOra!=null && x.cost && p.cost && p.peOra!==0){ x.tend=(x.peOra-p.peOra)/Math.abs(p.peOra)*100; } if(x.peOra!=null && x.cost) ultim[x.santier]=x; });
+  arr.slice().reverse().forEach(function(x){ var p=ultim[x.santier]; if(p && p.peOra!=null && x.peOra!=null && x.areCh && p.areCh && p.peOra!==0){ x.tend=(x.peOra-p.peOra)/Math.abs(p.peOra)*100; } if(x.peOra!=null && x.cost) ultim[x.santier]=x; });
   return arr;
 }
 /* Semafor cu 3 culori, la oră și la metru (Silviu, 24.11.2026). Pierderea intră la roșu.
@@ -451,7 +466,7 @@ function grupuri(){
    O zi cu lucru și la metru se judecă după pragurile de metru. */
 var PRAGURI={ora:{verde:25,galben:15}, metru:{verde:35,galben:25}};
 function semafor(x){
-  if(!x.cost || x.peOra==null) return null;
+  if(!(x.cost || x.areCh) || x.peOra==null) return null;
   var pr = x.areMetru ? PRAGURI.metru : PRAGURI.ora;
   return x.peOra>pr.verde ? 'g' : (x.peOra>=pr.galben ? 'y' : 'r');
 }
@@ -464,7 +479,7 @@ function totaluri(list){ var t={produs:0,cheltuieli:0,ramas:0,ore:0,metri:0,pers
 function arata(v){ ['vSetup','vLogin','vLoad','vApp'].forEach(function(id){ $(id).classList.toggle('hidden', id!==v); }); }
 /* Versiunea paginii. GitHub ține o copie veche până la ~10 minute; la fiecare pornire se verifică
    pagina de pe server (fără copie) și, dacă e mai nouă, se încarcă singură. (Silviu, 25.11.2026: „dacă dau refresh nu merge”) */
-var VERSIUNE='2026-11-25-2350';
+var VERSIUNE='2026-11-26-0005';
 function verificaVersiune(){
   if(LOCAL || IN_GOOGLE || !window.fetch) return;
   fetch(location.pathname+'?nv='+Date.now(),{cache:'no-store'}).then(function(r){ return r.ok? r.text() : ''; }).then(function(t){
@@ -482,7 +497,7 @@ function start(){
   try{ cache=JSON.parse(load('santiereData')||'null'); }catch(e){ cache=null; }
   if(t){
     S.token=t;
-    if(cache){ if(!cache.setari) cache.setari=[]; S.data=cache; S.rol=cache.rol; render(); arata('vApp'); }   // se vede pe loc, ultima variantă
+    if(cache){ if(!cache.setari) cache.setari=[]; if(!cache.oameni) cache.oameni=[]; S.data=cache; S.rol=cache.rol; render(); arata('vApp'); }   // se vede pe loc, ultima variantă
     $('bRefr').classList.add('rot');
     reincarca().then(function(){ arata('vApp'); }).then(function(){ $('bRefr').classList.remove('rot'); }, function(e){ $('bRefr').classList.remove('rot'); throw e; }).catch(function(e){
       if(errText(e).indexOf('SESIUNE')>=0){ uita(); verificaStare(); }
@@ -500,7 +515,7 @@ function verificaStare(){
 function pastreaza(){ try{ store('santiereData', JSON.stringify(S.data)); }catch(e){} }
 function uita(){ store('santiereToken',null); store('santiereData',null); S.token=null; S.data=null; }
 function reincarca(){ return call('api',S.token,'toate',null).then(primeste); }
-function primeste(d){ if(!d.setari) d.setari=[]; S.data=d; S.rol=d.rol; S.eroareSync=false; pastreaza(); render(); return d; }
+function primeste(d){ if(!d.setari) d.setari=[]; if(!d.oameni) d.oameni=[]; S.data=d; S.rol=d.rol; S.eroareSync=false; pastreaza(); render(); return d; }
 function semnSync(eroare){ S.eroareSync=eroare; if(S.data) culoriNote(); }
 function intrat(r){ S.token=r.token; S.rol=r.rol; store('santiereToken',r.token);
   if(r.data){ primeste(r.data); arata('vApp'); return Promise.resolve(); }
@@ -591,9 +606,9 @@ function cardGrup(x){
     (s?'<span class="chip '+semCls(s)+'"><span class="dot '+semCls(s)+'"></span>'+SEM_TXT[s]+'</span>':'')+'</div>'+
     '<div class="grid">'+
       '<div class="cell"><div class="label">Produs</div><div class="v num">'+(x.lipsaTarif?'<span class="down">lipsă tarif</span>':eur(x.produs))+'</div></div>'+
-      '<div class="cell"><div class="label">Cheltuieli</div><div class="v num">'+(x.cost?eur(x.cheltuieli):'<span class="muted" style="font-size:15px">necompletate</span>')+'</div></div>'+
-      '<div class="cell"><div class="label">Rămas</div><div class="v num">'+(x.cost?eur(x.ramas):'—')+'</div></div>'+
-      '<div class="cell"><div class="label">Rămas pe oră</div><div class="v num">'+(x.cost&&x.peOra!=null?eur(x.peOra):'—')+'</div><div class="small">'+tendHtml(x)+'</div></div>'+
+      '<div class="cell"><div class="label">Cheltuieli</div><div class="v num">'+(x.areCh?eur(x.cheltuieli):'<span class="muted" style="font-size:15px">necompletate</span>')+'</div></div>'+
+      '<div class="cell"><div class="label">Rămas</div><div class="v num">'+(x.areCh?eur(x.ramas):'—')+'</div></div>'+
+      '<div class="cell"><div class="label">Rămas pe oră</div><div class="v num">'+(x.areCh&&x.peOra!=null?eur(x.peOra):'—')+'</div><div class="small">'+tendHtml(x)+'</div></div>'+
     '</div>'+(x.cost?notaRand(x.cost):'')+(x.lucru.length?'':'<div class="small down" style="margin-top:8px">Fără pontaj în ziua asta</div>')+'</button>'+
     '<button class="more" data-more-grup="'+esc(x.key)+'" aria-label="Opțiuni pentru '+esc(x.santier)+'" aria-haspopup="menu"><span></span><span></span><span></span></button></div>';
 }
@@ -686,10 +701,17 @@ function viewSetari(){
       (ia>=0?'<span class="drag" aria-label="Trage ca să muți '+esc(s.nume)+'">≡</span>':'')+'</div>';
   });
   if(deschis) h+='</div>';
-  /* Cheltuieli fixe lunare: lista întreagă doar pentru Silviu; Cătălin vede doar totalul (salariul angajatei, contabilul etc. nu-i privesc) */
+  /* Oamenii, cu tariful pe oră (Silviu, 25.11.2026): din ei se calculează singure salariile zilei */
+  h+='<div class="day">Oameni și tarife pe oră</div><div class="small muted" style="margin:-2px 4px 6px">La Pontaj bifezi cine a lucrat; salariul zilei se calculează singur: orele fiecăruia × tariful lui.</div>';
+  oameniOrd().forEach(function(o){
+    h+='<div class="lr"><button class="item" data-om="'+esc(o.id)+'"><div class="row"><div class="grow"><div class="t">'+esc(o.nume)+(o.activ==='nu'?' <span class="chip">oprit</span>':'')+'</div>'+
+      '<div class="small muted">'+(o.santier?'echipa '+esc(o.santier):'fără șantier fix')+'</div></div><div class="num" style="font-weight:600">'+(has(o.tarif_ora)?eur(num(o.tarif_ora))+'/oră':'fără tarif')+'</div></div></button></div>';
+  });
+  h+='<button class="btn block" data-act="omnou">+ Adaugă om</button>';
+  /* Cheltuieli fixe lunare: le vede și le schimbă și Cătălin (Silviu, 25.11.2026: „e ok tot mai puțin parolele”) */
   var lunaAz=todayIso().slice(0,7), fx=fixeLuna(lunaAz), totFx=sumaFixe(lunaAz);
   h+='<div class="day">Cheltuieli fixe lunare</div>';
-  if(S.rol==='silviu'){
+  if(true){
     h+='<div class="small muted" style="margin:-2px 4px 8px">Cazările și carburantul se împart pe om și pe zi; restul după orele lucrate. Intră singure în cheltuielile fiecărei zile.</div>';
     ['cazare','carburant','general'].forEach(function(cat){
       var l=fixe().filter(function(f){ return f.cat===cat; }); if(!l.length) return;
@@ -699,8 +721,6 @@ function viewSetari(){
     });
     h+='<div class="card row" style="justify-content:space-between"><span class="muted">Total pe lună</span><b class="num">'+eur(totFx)+'</b></div>'+
        '<button class="btn block" data-act="fixnou">+ Adaugă cheltuială fixă</button>';
-  } else {
-    h+='<div class="card"><div class="small muted" style="margin-bottom:6px">Cazări, carburant, birou: se împart singure pe fiecare zi.</div><div class="big num" style="font-size:24px">'+eur(totFx)+' <span class="small muted">/ lună</span></div></div>';
   }
   h+='<div class="card"><div class="t" style="font-weight:600">Semaforul</div><div class="legend small">'+
      '<div class="small muted">Rămas pe oră, după cheltuieli</div>'+
@@ -746,6 +766,7 @@ function bindMain(){
     ]);
   }; });
   m.querySelectorAll('[data-grup]').forEach(function(b){ b.onclick=function(){ var k=b.dataset.grup.split('|'), d=k[0], s=k.slice(1).join('|'); marcheazaCitit(costPentru(d,s),'Costuri'); formCost(null,d,s); }; });
+  m.querySelectorAll('[data-om]').forEach(function(b){ b.onclick=function(){ formOm((S.data.oameni||[]).find(function(o){ return o.id===b.dataset.om; })); }; });
   m.querySelectorAll('[data-fix]').forEach(function(b){ b.onclick=function(){ formFix(fixe().find(function(f){ return f.id===b.dataset.fix; })); }; });
   var gs=m.querySelector('#gSave'); if(gs) gs.onclick=function(){
     var val=num(v('gLun')); var luna=todayIso().slice(0,7);
@@ -771,6 +792,7 @@ function bindMain(){
     else if(a==='excel') descarcaExcel(S.rezLuna, b);
     else if(a==='lipeste') formLipeste();
     else if(a==='fixnou') formFix(null);
+    else if(a==='omnou') formOm(null);
   }; });
 }
 
@@ -804,9 +826,9 @@ function foaieExcel(luna){
   var zile=[['Data','Ziua','Șantier','Ore','Metri (m²)','Produs €','Salarii €','Contribuții €','Chirie / cazare €','Carburant și autostradă €','Scule și echipament de protecție €','Cheltuieli generale €','Descriere generale','Fixe birou și altele €','Total cheltuieli €','Rămas €','Rămas pe oră €','Semafor','Notă']];
   g.forEach(function(x){ var c=x.cost||{}, s=semafor(x), dt=x.det||{};
     zile.push([dataRo(x.data),ZILE[parseIso(x.data).getDay()],x.santier,r2(x.ore),x.areMetru?r2(x.metri):null,x.lipsaTarif?null:r2(x.produs),
-      has(c.salarii)?r2(num(c.salarii)):null,has(c.contributii)?r2(num(c.contributii)):null,(has(c.chirie)||dt.chirieAuto)?r2(dt.chirie):null,(has(c.carburant)||dt.carbAuto)?r2(dt.carburant):null,has(c.scule)?r2(num(c.scule)):null,has(c.generale)?r2(num(c.generale)):null,c.generale_desc||'',
+      (has(c.salarii)||dt.salAuto)?r2(dt.salarii):null,(has(c.contributii)||dt.conAuto)?r2(dt.contributii):null,(has(c.chirie)||dt.chirieAuto)?r2(dt.chirie):null,(has(c.carburant)||dt.carbAuto)?r2(dt.carburant):null,has(c.scule)?r2(num(c.scule)):null,has(c.generale)?r2(num(c.generale)):null,c.generale_desc||'',
       dt.fixeBirou?r2(dt.fixeBirou):null,
-      x.cost?r2(x.cheltuieli):null, x.cost?r2(x.ramas):null, x.cost&&x.peOra!=null?r2(x.peOra):null, s?SEM_TXT[s]:(x.cost?'':'cheltuieli necompletate'), c.nota||'']); });
+      x.areCh?r2(x.cheltuieli):null, x.areCh?r2(x.ramas):null, x.areCh&&x.peOra!=null?r2(x.peOra):null, s?SEM_TXT[s]:(x.areCh?'':'cheltuieli necompletate'), c.nota||'']); });
   // Pontaj
   var pon=[['Data','Șantier','Tip','Persoane','Ore','Metri (m²)','Preț folosit €','Unitate','Produs €','Notă','Trecut de']];
   S.data.lucru.filter(function(r){ return String(r.data).slice(0,7)===luna; }).sort(function(a,b){ return a.data<b.data?-1:a.data>b.data?1:a.santier.localeCompare(b.santier); }).forEach(function(r){
@@ -958,9 +980,16 @@ function citesteBlocuri(text){
     var sn=faraDiacritice(c['santier']), s=(S.data.santiere||[]).find(function(x){ return faraDiacritice(x.nume)===sn; });
     if(s) r.santier=s.nume; else r.erori.push(c['santier']?'șantierul „'+c['santier']+'” nu e în listă':'șantierul lipsește');
     var tp=faraDiacritice(c['tip']); r.tip= /metr|^m$|mp|m²/.test(tp) ? 'metru' : 'ora';
-    r.persoane=numarText(c['persoane']); r.ore=numarText(c['ore']); r.metri=numarText(c['metri']);
+    /* „Ore” = orele unui om (Silviu, 25.11.2026: „fiecare om face 9 ore pe zi”); totalul = ore × persoane.
+       „Oameni: nume, nume…” (opțional) → îi bifează și le calculează salariul. */
+    r.persoane=numarText(c['persoane']); r.oreOm=numarText(c['ore']); r.metri=numarText(c['metri']); r.alesi=[]; r.necunoscuti=[];
+    if(c['oameni']) c['oameni'].split(/[,;\n]+/).map(function(x){ return x.trim(); }).filter(Boolean).forEach(function(n){
+      var o=omDupaNume(n); if(o){ if(!r.alesi.some(function(a){ return a.n===o.nume; })) r.alesi.push({n:o.nume, o:r.oreOm||0, t:num(o.tarif_ora)}); } else r.necunoscuti.push(n); });
+    if(r.necunoscuti.length) r.erori.push('nu găsesc în Setări → Oameni: '+r.necunoscuti.join(', '));
+    if(r.alesi.length) r.persoane=r.alesi.length;
     if(r.persoane==null) r.erori.push('persoanele lipsesc');
-    if(r.ore==null) r.erori.push('orele lipsesc');
+    if(r.oreOm==null) r.erori.push('orele lipsesc');
+    r.ore = (r.oreOm!=null && r.persoane!=null) ? Math.round(r.oreOm*r.persoane*100)/100 : null;
     if(r.tip==='metru' && r.metri==null) r.erori.push('metrii lipsesc');
     var pm=numarText(c['pret pe m²']!=null?c['pret pe m²']:c['pret pe m']);
     r.pret_metru = (r.tip==='metru' && pm!=null && !(s && has(s.pret_metru) && num(s.pret_metru)===pm)) ? String(pm) : '';
@@ -975,7 +1004,7 @@ function formLipeste(){
   deschide('<h2>Lipește din Claude / Grok</h2>'+
     '<div class="small muted" style="margin:-4px 4px 10px">Copiază răspunsul de la Claude sau Grok (blocurile PONTAJ … SFÂRȘIT) și lipește-l aici. Vezi ce s-a completat, apoi apeși Salvează.</div>'+
     '<button class="btn block" id="pClip" style="margin-bottom:10px">📋 Lipește ce am copiat</button>'+
-    '<label class="field"><span>Textul de la Claude / Grok</span><textarea id="pTxt" rows="7" placeholder="PONTAJ&#10;Data: 25.11.2026&#10;Șantier: …&#10;Tip: oră&#10;Persoane: 3&#10;Ore: 9&#10;Notă: …&#10;SFÂRȘIT"></textarea></label>'+
+    '<label class="field"><span>Textul de la Claude / Grok</span><textarea id="pTxt" rows="7" placeholder="PONTAJ&#10;Data: 25.11.2026&#10;Șantier: …&#10;Tip: oră&#10;Oameni: …&#10;Ore: 9&#10;Notă: …&#10;SFÂRȘIT"></textarea></label>'+
     '<div id="pPrev"></div><div class="err" id="fErr"></div>'+
     '<div class="actions"><button class="btn primary block" id="pSave" disabled>Salvează</button><button class="btn block" id="pCancel">Renunță</button></div>');
   function arata(){
@@ -986,6 +1015,8 @@ function formLipeste(){
         var ok=!r.erori.length, s=r.santier?santier(r.santier):null, pr=ok?produsRand({santier:r.santier,tip:r.tip,ore:r.ore,metri:r.metri,pret_metru:r.pret_metru}):null;
         return '<div class="card lp'+(ok?'':' gresit')+'"><div class="row"><div class="grow"><div class="t">'+(ok?'✅ ':'🔴 ')+esc(r.santier||'Șantier necunoscut')+'</div>'+
           '<div class="small muted num">'+(r.data?esc(zi(r.data)):'fără dată')+'</div>'+
+          (r.alesi.length?'<div class="small">'+esc(r.alesi.map(function(a){ return a.n; }).join(', '))+'</div>':'')+
+          (r.oreOm!=null&&r.persoane!=null?'<div class="small muted num">'+nr(r.persoane)+(r.persoane===1?' om':' oameni')+' × '+nr(r.oreOm)+' ore</div>':'')+
           '<div class="small num">'+nr(r.persoane||0)+' pers. · '+nr(r.ore||0)+' ore'+(r.tip==='metru'?' · '+nr(r.metri||0)+' m²'+(r.pret_metru?' × '+eur(num(r.pret_metru)):''):'')+'</div>'+
           (r.nota?'<div class="small">Notă: '+esc(r.nota)+'</div>':'')+
           (r.erori.length?'<div class="small down">'+esc(r.erori.join(' · '))+'</div>':'')+
@@ -1006,7 +1037,7 @@ function formLipeste(){
     var bune=randuri.filter(function(r){ return !r.erori.length; }); if(!bune.length) return;
     bune.forEach(function(r){
       salvareTacita('Lucru', Object.assign({id:idNou(), data:r.data, santier:r.santier, tip:r.tip, persoane:String(r.persoane), ore:String(r.ore),
-        metri:r.tip==='metru'?String(r.metri):'', pret_metru:r.pret_metru, tarif_ora:'', nota:r.nota}, notaStare(null, r.nota)));
+        metri:r.tip==='metru'?String(r.metri):'', pret_metru:r.pret_metru, tarif_ora:'', nota:r.nota, oameni:r.alesi.length?JSON.stringify(r.alesi):''}, notaStare(null, r.nota)));
     });
     inchide(); S.tab='lucru'; render(); toast('Salvat: '+bune.length+(bune.length===1?' pontaj':' pontaje'));
   };
@@ -1027,7 +1058,7 @@ function optSantiere(sel){
 }
 /* Salvare pe loc: ecranul se schimbă imediat, serverul primește în spate, în ordine. */
 var COADA=Promise.resolve(), INCURS=0;
-function cheieLista(foaie){ return foaie==='Lucru'?'lucru':foaie==='Costuri'?'costuri':foaie==='Setari'?'setari':'santiere'; }
+function cheieLista(foaie){ return foaie==='Lucru'?'lucru':foaie==='Costuri'?'costuri':foaie==='Setari'?'setari':foaie==='Oameni'?'oameni':'santiere'; }
 /* suma lunară valabilă pentru luna dată: ultima setată în luna asta sau înainte */
 function generaleLuna(luna){
   if(fixeLuna(luna).length) return 0;   // de când există lista de cheltuieli fixe, ele intră deja pe fiecare zi
@@ -1091,12 +1122,20 @@ function v(id){ var e=$(id); return e? e.value.trim() : ''; }
 /* ---- Lucru ---- */
 function formLucru(r){
   var nou=!r; r=r||{data:todayIso(),santier:(santiereOrd().find(function(s){return s.activ!=='nu';})||{}).nume||'',tip:'ora',persoane:'',ore:'',metri:'',nota:''};
+  /* Cine a lucrat (Silviu, 25.11.2026): bifezi oamenii, orele sunt pe om; totalul de ore și salariul ies singure */
+  var cuOameni=(S.data.oameni||[]).some(function(o){ return o.activ!=='nu'; }) || has(r.oameni);
+  var alesi=oameniRand(r);                                  // [{n,o,t}] din pontajul existent
+  var oreOmInit = alesi.length ? String(alesi[0].o) : (num(r.persoane)>0 && num(r.ore)>0 ? String(Math.round(num(r.ore)/num(r.persoane)*100)/100) : '');
   deschide('<h2>'+(nou?'Cine a lucrat și cât':'Modifică ziua')+'</h2>'+
     '<label class="field"><span>Data</span><input id="lData" type="date" value="'+esc(r.data)+'"></label>'+
     santierPick('lSant', r.santier)+
     '<div class="field"><span>Cum se plătește</span><div class="seg" id="lTip"><button type="button" data-v="ora" class="'+(r.tip!=='metru'?'on':'')+'">La oră</button><button type="button" data-v="metru" class="'+(r.tip==='metru'?'on':'')+'">La metru</button></div></div>'+
-    '<div class="two"><label class="field"><span>Persoane</span><input id="lPers" inputmode="numeric" value="'+esc(r.persoane)+'" placeholder="ex. 3"></label>'+
-    '<label class="field"><span>Ore totale</span><input id="lOre" inputmode="decimal" value="'+esc(r.ore)+'" placeholder="ex. 24"></label></div>'+
+    (cuOameni
+      ? '<label class="field"><span>Ore pe om</span><input id="lOreOm" inputmode="decimal" value="'+esc(oreOmInit)+'" placeholder="ex. 9"></label>'+
+        '<div class="field"><span>Cine a lucrat</span><div class="oml" id="lOam"></div></div>'+
+        '<input type="hidden" id="lPers" value="'+esc(r.persoane)+'"><input type="hidden" id="lOre" value="'+esc(r.ore)+'">'
+      : '<div class="two"><label class="field"><span>Persoane</span><input id="lPers" inputmode="numeric" value="'+esc(r.persoane)+'" placeholder="ex. 3"></label>'+
+        '<label class="field"><span>Ore totale</span><input id="lOre" inputmode="decimal" value="'+esc(r.ore)+'" placeholder="ex. 27"></label></div>')+
     '<div id="lOraF"><div class="pbox" id="boxOra"></div></div>'+
     '<div id="lMetriF"><label class="field"><span>Metri făcuți (m²)</span><input id="lMetri" inputmode="decimal" value="'+esc(r.metri)+'" placeholder="ex. 60"></label>'+
     '<div class="pbox" id="boxMetru"></div></div>'+
@@ -1148,20 +1187,49 @@ function formLucru(r){
     var reg = pr==null ? '' : (tip==='metru' ? nr(num(x.metri))+' m² × '+eur(pr) : nr(num(x.ore))+' ore × '+eur(pr));
     $('lLive').innerHTML='<div class="row"><span class="muted">Produs</span><b class="num">'+(p.lipsa?'<span class="down">'+(tip==='metru'?'pune prețul pe m² (✏️)':'pune prețul pe oră (✏️)')+'</span>':eur(p.v))+'</b></div>'+(reg?'<div class="small muted num">'+reg+'</div>':'');
   }
+  /* lista de oameni: bifat = a lucrat; orele lui (implicit „Ore pe om”), tariful din ziua aceea */
+  var bif={}, oreInd={}, atins=false;
+  alesi.forEach(function(a){ bif[a.n]=a.t; if(String(a.o)!==String(alesi[0].o)) oreInd[a.n]=String(a.o); });
+  function implicit(){ bif={}; (S.data.oameni||[]).forEach(function(o){ if(o.activ!=='nu' && o.santier===v('lSant')) bif[o.nume]=num(o.tarif_ora); }); }
+  if(cuOameni && nou) implicit();
+  function listaOameni(){
+    var toti=(S.data.oameni||[]).filter(function(o){ return o.activ!=='nu' || bif.hasOwnProperty(o.nume); });
+    alesi.forEach(function(a){ if(!toti.some(function(o){ return o.nume===a.n; })) toti.push({nume:a.n, tarif_ora:String(a.t), santier:''}); });   // om șters între timp
+    var s=v('lSant');
+    toti.sort(function(a,b){ var x=(b.santier===s)-(a.santier===s); return x || String(a.nume).localeCompare(String(b.nume)); });
+    return toti;
+  }
+  function deseneazaOameni(){
+    var el=$('lOam'); if(!el) return; var om=v('lOreOm');
+    el.innerHTML=listaOameni().map(function(o){ var on=bif.hasOwnProperty(o.nume), t=on?bif[o.nume]:num(o.tarif_ora);
+      return '<div class="omr'+(on?' on':'')+'" data-n="'+esc(o.nume)+'"><button type="button" class="omb" aria-pressed="'+on+'"><span class="omc">'+(on?'✓':'')+'</span><span class="grow"><b>'+esc(o.nume)+'</b><span class="small muted"> · '+eur(t)+'/oră</span></span></button>'+
+        (on?'<input class="omo num" inputmode="decimal" value="'+esc(oreInd[o.nume]!=null?oreInd[o.nume]:om)+'" aria-label="Ore '+esc(o.nume)+'"><span class="small muted">ore</span>':'')+'</div>'; }).join('') ||
+      '<div class="small muted">Nu e niciun om în Setări → Oameni.</div>';
+    el.querySelectorAll('.omr').forEach(function(rw){ var n=rw.dataset.n;
+      rw.querySelector('.omb').onclick=function(){ atins=true; if(bif.hasOwnProperty(n)){ delete bif[n]; delete oreInd[n]; } else { var o=(S.data.oameni||[]).find(function(x){ return x.nume===n; }); bif[n]=o?num(o.tarif_ora):0; } deseneazaOameni(); upd(); };
+      var i=rw.querySelector('.omo'); if(i) i.oninput=function(){ oreInd[n]=i.value; sincron(); upd(); };
+    });
+    sincron();
+  }
+  function alesiAcum(){ var om=num(v('lOreOm')); return Object.keys(bif).map(function(n){ var o= oreInd[n]!=null && has(oreInd[n]) ? num(oreInd[n]) : om; return {n:n, o:o, t:bif[n]}; }); }
+  function sincron(){ if(!cuOameni) return; var l=alesiAcum(); $('lPers').value=String(l.length); $('lOre').value=String(Math.round(l.reduce(function(a,x){ return a+x.o; },0)*100)/100); }
+  if(cuOameni){ $('lOreOm').oninput=function(){ deseneazaOameni(); upd(); }; deseneazaOameni(); }
   $('lTip').querySelectorAll('button').forEach(function(b){ b.onclick=function(){ tip=b.dataset.v; $('lTip').querySelectorAll('button').forEach(function(o){ o.classList.toggle('on',o===b); }); upd(); }; });
   ['lOre','lMetri'].forEach(function(id){ $(id).oninput=upd; $(id).onchange=upd; });
-  $('lSant').onchange=function(){ custom={ora:'',metru:''}; editing={ora:false,metru:false}; box('ora'); box('metru'); upd(); };
+  $('lSant').onchange=function(){ custom={ora:'',metru:''}; editing={ora:false,metru:false}; if(cuOameni){ if(nou && !atins) implicit(); deseneazaOameni(); } box('ora'); box('metru'); upd(); };
   ['ora','metru'].forEach(function(k){ if(has(custom[k]) && fixPret(k)!=null && num(custom[k])===fixPret(k)) custom[k]=''; });
   box('ora'); box('metru'); upd();
   $('lCancel').onclick=inchide;
   $('lSave').onclick=function(){
     var e='';
     if(editing[tip] && !confirma(tip)) return;          // prețul scris dar neconfirmat se ia automat
-    if(!v('lData')) e='Pune data.'; else if(!v('lSant')) e='Alege șantierul.'; else if(!(num(v('lPers'))>0)) e='Pune câte persoane au lucrat.';
-    else if(!(num(v('lOre'))>0)) e='Pune orele totale.'; else if(tip==='metru' && !(num(v('lMetri'))>0)) e='Pune metrii făcuți.';
+    sincron();
+    if(!v('lData')) e='Pune data.'; else if(!v('lSant')) e='Alege șantierul.'; else if(!(num(v('lPers'))>0)) e= cuOameni ? 'Bifează cine a lucrat.' : 'Pune câte persoane au lucrat.';
+    else if(!(num(v('lOre'))>0)) e= cuOameni ? 'Pune orele pe om.' : 'Pune orele totale.'; else if(tip==='metru' && !(num(v('lMetri'))>0)) e='Pune metrii făcuți.';
     else if(curPret(tip)==null) e= tip==='metru' ? 'Pune prețul pe m² (✏️).' : 'Pune prețul pe oră (✏️).';
     if(e){ $('fErr').textContent=e; return; }
-    salvare('Lucru',Object.assign({id:r.id||'',data:v('lData'),santier:v('lSant'),tip:tip,persoane:String(num(v('lPers'))),ore:String(num(v('lOre'))),metri:tip==='metru'?String(num(v('lMetri'))):'',pret_metru:tip==='metru'?custom.metru:'',tarif_ora:tip==='ora'?custom.ora:'',nota:v('lNota')}, notaStare(r, v('lNota'))),this);
+    salvare('Lucru',Object.assign({id:r.id||'',data:v('lData'),santier:v('lSant'),tip:tip,persoane:String(num(v('lPers'))),ore:String(num(v('lOre'))),metri:tip==='metru'?String(num(v('lMetri'))):'',pret_metru:tip==='metru'?custom.metru:'',tarif_ora:tip==='ora'?custom.ora:'',nota:v('lNota'),
+      oameni: cuOameni ? JSON.stringify(alesiAcum().filter(function(a){ return a.o>0; })) : (r.oameni||'')}, notaStare(r, v('lNota'))),this);
   };
   if(!nou) $('lDel').onclick=function(){ eliminaPontaj(r); };
 }
@@ -1186,6 +1254,7 @@ function formCost(_, data, sant){
   data=data||todayIso(); sant=sant||(santiereOrd().find(function(s){return s.activ!=='nu';})||{}).nume||'';
   var c=costPentru(data,sant), nou=!c; c=c||costGol(data,sant);
   var contribManual=!!(c.id && has(c.contributii) && num(c.contributii)!==contribCalc(c.data,c.santier));
+  var salManual=!!(c.id && has(c.salarii) && num(c.salarii)>0 && (!areOameniZi(c.data,c.santier) || num(c.salarii)!==salariiZi(c.data,c.santier)));
   deschide('<h2>Produs, cheltuieli, rămas</h2>'+
     '<div class="two"><label class="field"><span>Data</span><input id="cData" type="date" value="'+esc(c.data)+'"></label>'+
     '</div>'+santierPick('cSant', c.santier)+
@@ -1213,11 +1282,13 @@ function formCost(_, data, sant){
     var t=[]; if(p.areCazare) t.push('chirie '+eur(p.cazare)); if(p.areCarburant) t.push('carburant și autostrăzi '+eur(p.carburant)); if(p.areGeneral) t.push('birou și altele '+eur(p.general));
     $('cFixInfo').textContent = t.length ? 'Puse singure din cheltuielile fixe ale lunii: '+t.join(' · ')+'. Chiria o poți scrie de mână dacă ziua asta e altfel.' : '';
   }
+  function puneSalAuto(){ if(!salManual && areOameniZi(v('cData'),v('cSant'))){ var val=salariiZi(v('cData'),v('cSant')); $('cSal').value= val? String(val).replace('.',',') : ''; } }
   function infoContrib(){
     var d=v('cData'), s=v('cSant'), o=oreZi(d,s), r=contribOra(s);
-    $('cConInfo').textContent = contribManual
+    var sTxt = areOameniZi(d,s) ? (salManual ? 'Salarii puse de mână. Din pontaj ar ieși '+eur(salariiZi(d,s))+'. ' : 'Salarii calculate singure din pontaj: orele fiecărui om × tariful lui. ') : '';
+    $('cConInfo').textContent = sTxt + (contribManual
       ? 'Contribuții puse de mână. Calculul lui Cătălin ar da '+eur(contribCalc(d,s))+'.'
-      : (r>0 ? 'Contribuții calculate singure: '+nr(o)+' ore × '+eur(r)+' pe oră. Le poți schimba.' : 'Contribuții: suma pe oră nu e pusă la acest șantier (Setări).');
+      : (r>0 ? 'Contribuții calculate singure: '+nr(o)+' ore × '+eur(r)+' pe oră. Le poți schimba.' : 'Contribuții: suma pe oră nu e pusă la acest șantier (Setări).'));
   }
   function upd(){
     var d=v('cData'), s=v('cSant');
@@ -1238,14 +1309,18 @@ function formCost(_, data, sant){
     CAMP_COST.forEach(function(f){ $(f.id).value=virg(c[f.k]); });
     $('cGenD').value=c.generale_desc||''; $('cNota').value=c.nota||'';
     contribManual=!!(c.id && has(c.contributii) && num(c.contributii)!==contribCalc(d,s));
+    salManual=!!(c.id && has(c.salarii) && num(c.salarii)>0 && (!areOameniZi(d,s) || num(c.salarii)!==salariiZi(d,s)));
     if(!c.id || !has(c.contributii)) puneContribAuto();
+    puneSalAuto();
     var del=$('cDel'); if(del) del.classList.toggle('hidden', !c.id);
     upd();
   }
   CAMP_COST.forEach(function(f){ $(f.id).oninput=upd; });
   $('cCon').oninput=function(){ contribManual=true; upd(); };
+  $('cSal').oninput=function(){ salManual=true; upd(); };
   ['cData','cSant'].forEach(function(id){ $(id).onchange=schimbatCheia; });
   if(!c.id || !has(c.contributii)) puneContribAuto();
+  puneSalAuto();
   upd();
   $('cCancel').onclick=inchide;
   $('cSave').onclick=function(){
@@ -1257,6 +1332,8 @@ function formCost(_, data, sant){
     if(num(v('cGen'))>0 && !v('cGenD')){ $('fErr').textContent='Scrie pe scurt ce sunt cheltuielile generale.'; return; }
     var rand={id:c.id||'',data:d,santier:s,nota:v('cNota'),generale_desc:v('cGenD')};
     CAMP_COST.forEach(function(f){ rand[f.k]=String(num(v(f.id))); });
+    if(!salManual && areOameniZi(d,s)) rand.salarii='';          // rămân calculate din pontaj, și după ce se schimbă orele
+    if(!contribManual && contribOra(s)>0) rand.contributii='';   // la fel contribuțiile: orele × suma pe oră, mereu la zi
     Object.assign(rand, notaStare(c, v('cNota')));
     salvare('Costuri',rand,this);
   };
@@ -1265,6 +1342,38 @@ function formCost(_, data, sant){
 
 /* ---- Șantiere ---- */
 function folosit(nume){ return S.data.lucru.some(function(r){return r.santier===nume;}) || S.data.costuri.some(function(r){return r.santier===nume;}); }
+/* =================== Oameni (Silviu, 25.11.2026) =================== */
+/* oamenii unui pontaj: [{n: nume, o: ore, t: tarif pe oră din ziua aceea}] */
+function oameniRand(r){ if(!r || !has(r.oameni)) return []; try{ var l=JSON.parse(r.oameni); return Array.isArray(l)? l.filter(function(a){ return a && a.n; }) : []; }catch(e){ return []; } }
+function salariiRand(r){ return oameniRand(r).reduce(function(a,x){ return a+num(x.o)*num(x.t); },0); }
+function salariiZi(data,sant){ return Math.round(S.data.lucru.filter(function(x){ return x.data===data && x.santier===sant; }).reduce(function(a,x){ return a+salariiRand(x); },0)*100)/100; }
+function areOameniZi(data,sant){ return S.data.lucru.some(function(x){ return x.data===data && x.santier===sant && oameniRand(x).length; }); }
+function oameniOrd(){ return (S.data.oameni||[]).slice().sort(function(a,b){ var x=(a.activ==='nu')-(b.activ==='nu'); if(x) return x;
+  var os=(a.santier||'~').localeCompare(b.santier||'~'); if(os) return os; return String(a.nume).localeCompare(String(b.nume)); }); }
+function omDupaNume(n){ var k=faraDiacritice(n); return (S.data.oameni||[]).find(function(o){ return faraDiacritice(o.nume)===k; })
+  || (S.data.oameni||[]).find(function(o){ var p=faraDiacritice(o.nume).split(' '); return p.indexOf(k)>=0; }); }
+function formOm(o){
+  var nou=!o; o=o||{id:'',nume:'',tarif_ora:'',santier:'',activ:'da'};
+  deschide('<h2>'+(nou?'Om nou':esc(o.nume))+'</h2>'+
+    '<label class="field"><span>Nume și prenume</span><input id="omNume" value="'+esc(o.nume)+'"></label>'+
+    '<label class="field"><span>Tarif pe oră €</span><input id="omTarif" inputmode="decimal" value="'+esc(virg(o.tarif_ora))+'" placeholder="0"></label>'+
+    '<div class="small muted" style="margin:-4px 4px 8px">Tariful nou se folosește la pontajele de acum înainte; cele trecute își păstrează tariful din ziua lor.</div>'+
+    '<label class="field"><span>Echipa (șantierul de obicei)</span><select id="omSant"><option value="">fără șantier fix</option>'+
+      santiereOrd().map(function(s){ return '<option'+(s.nume===o.santier?' selected':'')+'>'+esc(s.nume)+'</option>'; }).join('')+'</select></label>'+
+    '<label class="field"><span>Stare</span><select id="omActiv"><option value="da"'+(o.activ!=='nu'?' selected':'')+'>Activ</option><option value="nu"'+(o.activ==='nu'?' selected':'')+'>Oprit (nu mai apare la Pontaj)</option></select></label>'+
+    '<div class="err" id="fErr"></div>'+
+    '<div class="actions"><button class="btn primary block" id="omSave">Salvează</button>'+(nou?'':'<button class="btn danger block" id="omDel">Șterge omul</button>')+'<button class="btn block" id="omCancel">Renunță</button></div>');
+  $('omCancel').onclick=inchide;
+  $('omSave').onclick=function(){
+    var n=v('omNume'); if(!n){ $('fErr').textContent='Pune numele.'; return; }
+    var dubla=(S.data.oameni||[]).find(function(x){ return faraDiacritice(x.nume)===faraDiacritice(n) && x.id!==o.id; });
+    if(dubla){ $('fErr').textContent='Există deja un om cu numele ăsta.'; return; }
+    if(!(num(v('omTarif'))>0)){ $('fErr').textContent='Pune tariful pe oră.'; return; }
+    salvare('Oameni',{id:o.id||idNou(), nume:n, tarif_ora:String(num(v('omTarif'))), santier:v('omSant'), activ:v('omActiv'), ordine:o.ordine||''}, this, 'Salvat: '+n);
+  };
+  if(!nou) $('omDel').onclick=function(){ stergere('Oameni', o.id, this, 'Ștergi pe '+o.nume+'? Pontajele trecute rămân cum sunt.'); };
+}
+
 /* O cheltuială fixă lunară: nume, sumă, cum se împarte, din ce lună */
 function formFix(f){
   var nou=!f; f=f||{id:'',nume:'',cat:'general',din:todayIso().slice(0,7),suma:''};
