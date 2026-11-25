@@ -96,6 +96,11 @@ header.top h1{font-size:28px;line-height:1.15;margin:0;font-weight:700;letter-sp
 .item .t{font-weight:600;font-size:17px}
 .chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--card2);color:var(--muted)}
 .chip.g{background:var(--green-bg);color:var(--green)}
+.nrow{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line,rgba(127,127,127,.18))}
+.nb{flex:none;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:13px;font-weight:700;color:#fff;letter-spacing:0}
+.nb.r{background:var(--red)} .nb.g{background:var(--green)}
+.ntxt{min-width:0;flex:1;font-size:15px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ntxt.nou{color:var(--text,inherit);font-weight:600}
 .chip.y{background:var(--yellow-bg);color:var(--yellow)}
 .chip.r{background:var(--red-bg);color:var(--red)}
 .dot{width:12px;height:12px;border-radius:50%;display:inline-block;flex:none}
@@ -258,6 +263,7 @@ var Mock = (function(){
     api:function(t,a,p){ var d=db(); if(t!=='silviu'&&t!=='catalin') throw new Error('SESIUNE');
       if(a==='toate') return all(d,t);
       if(a==='salveaza'){ var k=p.foaie==='Lucru'?'lucru':p.foaie==='Costuri'?'costuri':p.foaie==='Setari'?'setari':'santiere'; if(!d[k]) d[k]=[]; var r=JSON.parse(JSON.stringify(p.rand)); if(!r.id) r.id=String(Date.now())+Math.random().toString(36).slice(2); r.cine=t==='silviu'?'Silviu':'Cătălin'; r.modificat=new Date().toISOString(); var i=d[k].findIndex(function(x){return x.id===r.id;}); if(i>=0) d[k][i]=r; else d[k].push(r); }
+      else if(a==='citit'){ var eu=t==='silviu'?'Silviu':'Cătălin'; d.lucru.forEach(function(x){ var de=x.nota_de||(x.nota?x.cine:''); if(x.id===p.id && de && de!==eu) x.nota_citita='da'; }); }
       else if(a==='sterge'){ var k2=p.foaie==='Lucru'?'lucru':p.foaie==='Costuri'?'costuri':p.foaie==='Setari'?'setari':'santiere'; if(!d[k2]) d[k2]=[]; d[k2]=d[k2].filter(function(x){return x.id!==p.id;}); }
       else if(a==='parole'){ if(t!=='silviu') throw new Error('Doar Silviu poate schimba parolele.'); if(p.silviu) d.pw.silviu=p.silviu; if(p.catalin) d.pw.catalin=p.catalin; sv(d); return {ok:true,iesit:true}; }
       d.act=new Date().toISOString(); sv(d); return all(d,t); }
@@ -356,6 +362,25 @@ function produsRand(r){
   if(r.tip==='metru'){ var pm=pretMetru(r,s); if(pm==null) return {v:0,lipsa:true}; return {v:num(r.metri)*pm}; }
   var to=tarifOra(r,s); if(to==null) return {v:0,lipsa:true};
   return {v:num(r.ore)*to};
+}
+/* Nota pontajului: N roșu = necitită de celălalt, N verde = citită (Silviu, 25.11.2026). */
+function euNume(){ return S.rol==='silviu'?'Silviu':'Cătălin'; }
+function notaDe(r){ return has(r.nota) ? (r.nota_de || r.cine || '') : ''; }
+function notaCitita(r){ return r.nota_citita==='da'; }
+function notaStare(r, notaNoua){
+  if(!has(notaNoua)) return {nota_de:'', nota_citita:''};
+  if(r && r.id && String(notaNoua)===String(r.nota||'')) return {nota_de:notaDe(r), nota_citita:r.nota_citita||''};
+  return {nota_de:euNume(), nota_citita:''};
+}
+function marcheazaCitit(r){
+  if(!r || !has(r.nota) || notaCitita(r)) return;
+  var de=notaDe(r); if(!de || de===euNume()) return;
+  r.nota_citita='da'; pastreaza(); trimite('citit',{id:r.id});
+}
+function nHtml(r){
+  if(!has(r.nota)) return '';
+  var cit=notaCitita(r), de=notaDe(r);
+  return '<span class="nb '+(cit?'g':'r')+'" title="Notă de la '+esc(de)+(cit?', citită':', necitită')+'">N</span>';
 }
 function costTotal(c){ return c? num(c.salarii)+num(c.contributii)+num(c.chirie)+num(c.carburant)+num(c.scule)+num(c.generale) : 0; }
 function grupuri(){
@@ -462,7 +487,8 @@ function viewLucru(){
     var p=produsRand(r);
     h+='<div class="lr"><div class="item" role="button" tabindex="0" data-lucru="'+esc(r.id)+'"><div class="row"><div class="grow"><div class="t">'+esc(r.santier)+'</div>'+
       '<div class="small muted num">'+nr(num(r.persoane))+'\u00a0pers. · '+nr(num(r.ore))+'\u00a0ore'+(r.tip==='metru'?' · '+nr(num(r.metri))+'\u00a0m²'+(pretMetru(r,santier(r.santier))!=null?' × '+eur(pretMetru(r,santier(r.santier))):''):(tarifOra(r,santier(r.santier))!=null?' × '+eur(tarifOra(r,santier(r.santier))):''))+'</div></div>'+
-      '<div style="text-align:right"><span class="chip">'+(r.tip==='metru'?'la metru':'la oră')+'</span><div class="small num" style="margin-top:4px">'+(p.lipsa?'<span class="down">lipsă tarif</span>':eur(p.v))+'</div></div></div></div>'+
+      '<div style="text-align:right"><span class="chip">'+(r.tip==='metru'?'la metru':'la oră')+'</span><div class="small num" style="margin-top:4px">'+(p.lipsa?'<span class="down">lipsă tarif</span>':eur(p.v))+'</div></div></div>'+
+      (has(r.nota)?'<div class="nrow">'+nHtml(r)+'<span class="ntxt'+(notaCitita(r)?'':' nou')+'">'+esc(r.nota)+'</span></div>':'')+'</div>'+
       '<button class="more" data-more-lucru="'+esc(r.id)+'" aria-label="Opțiuni pentru '+esc(r.santier)+'" aria-haspopup="menu"><span></span><span></span><span></span></button></div>';
   });
   return h+maiVechi(l.length, vis.length);
@@ -601,7 +627,7 @@ function viewSetari(){
 function bindMain(){
   var m=$('main');
   m.querySelectorAll('[data-lucru]').forEach(function(b){
-    function deschideRand(){ formLucru(S.data.lucru.find(function(r){ return r.id===b.dataset.lucru; })); }
+    function deschideRand(){ var rr=S.data.lucru.find(function(r){ return r.id===b.dataset.lucru; }); marcheazaCitit(rr); formLucru(rr); }
     b.onclick=deschideRand;
     b.onkeydown=function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); deschideRand(); } };
   });
@@ -958,7 +984,7 @@ function formLucru(r){
     else if(!(num(v('lOre'))>0)) e='Pune orele totale.'; else if(tip==='metru' && !(num(v('lMetri'))>0)) e='Pune metrii făcuți.';
     else if(curPret(tip)==null) e= tip==='metru' ? 'Pune prețul pe m² (✏️).' : 'Pune prețul pe oră (✏️).';
     if(e){ $('fErr').textContent=e; return; }
-    salvare('Lucru',{id:r.id||'',data:v('lData'),santier:v('lSant'),tip:tip,persoane:String(num(v('lPers'))),ore:String(num(v('lOre'))),metri:tip==='metru'?String(num(v('lMetri'))):'',pret_metru:tip==='metru'?custom.metru:'',tarif_ora:tip==='ora'?custom.ora:'',nota:v('lNota')},this);
+    salvare('Lucru',Object.assign({id:r.id||'',data:v('lData'),santier:v('lSant'),tip:tip,persoane:String(num(v('lPers'))),ore:String(num(v('lOre'))),metri:tip==='metru'?String(num(v('lMetri'))):'',pret_metru:tip==='metru'?custom.metru:'',tarif_ora:tip==='ora'?custom.ora:'',nota:v('lNota')}, notaStare(r, v('lNota'))),this);
   };
   if(!nou) $('lDel').onclick=function(){ eliminaPontaj(r); };
 }
