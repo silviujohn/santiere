@@ -437,6 +437,7 @@ function start(){
     reincarca().then(function(){ arata('vApp'); }).then(function(){ $('bRefr').classList.remove('rot'); }, function(e){ $('bRefr').classList.remove('rot'); throw e; }).catch(function(e){
       if(errText(e).indexOf('SESIUNE')>=0){ uita(); verificaStare(); }
       else if(!cache){ arata('vLogin'); $('eLogin').textContent='Nu mă pot lega la server: '+errText(e); }
+      else semnSync(true);   // se vede ultima variantă păstrată, dar n-a venit nimic nou: ↻ roșu
     });
     return;
   }
@@ -449,7 +450,8 @@ function verificaStare(){
 function pastreaza(){ try{ store('santiereData', JSON.stringify(S.data)); }catch(e){} }
 function uita(){ store('santiereToken',null); store('santiereData',null); S.token=null; S.data=null; }
 function reincarca(){ return call('api',S.token,'toate',null).then(primeste); }
-function primeste(d){ if(!d.setari) d.setari=[]; S.data=d; S.rol=d.rol; pastreaza(); render(); return d; }
+function primeste(d){ if(!d.setari) d.setari=[]; S.data=d; S.rol=d.rol; S.eroareSync=false; pastreaza(); render(); return d; }
+function semnSync(eroare){ S.eroareSync=eroare; if(S.data) culoriNote(); }
 function intrat(r){ S.token=r.token; S.rol=r.rol; store('santiereToken',r.token);
   if(r.data){ primeste(r.data); arata('vApp'); return Promise.resolve(); }
   return reincarca().then(function(){ arata('vApp'); }); }
@@ -468,14 +470,15 @@ function reimprospateaza(arataToast){
   if(!S.token || INCURS>0) return Promise.resolve();
   var b=$('bRefr'); b.classList.add('rot');
   return reincarca().then(function(){ if(arataToast) toast('Datele sunt la zi'); })
-    .catch(function(e){ if(!sesiune(e) && arataToast) toast(errText(e)); })
+    .catch(function(e){ if(!sesiune(e)){ semnSync(true); if(arataToast) toast(errText(e)); } })
     .then(function(){ b.classList.remove('rot'); });
 }
 /* ↻ roșu = ai note necitite, verde = totul citit; numărul pe Pontaj / Costuri (Silviu, 25.11.2026) */
 function culoriNote(){
-  var n=necitite(), tot=n.lucru+n.bani, b=$('bRefr');
-  b.classList.toggle('rosu', tot>0); b.classList.toggle('verde', tot===0);
-  b.setAttribute('aria-label', tot>0 ? 'Reîmprospătează. Ai '+tot+(tot===1?' notă necitită':' note necitite') : 'Reîmprospătează. Toate notele sunt citite');
+  var n=necitite(), b=$('bRefr');
+  /* ↻ arată actualizarea (Silviu, 25.11.2026 „OK, FACEM ASA”): verde = la zi, roșu = o salvare sau o aducere de date n-a mers */
+  b.classList.toggle('rosu', !!S.eroareSync); b.classList.toggle('verde', !S.eroareSync);
+  b.setAttribute('aria-label', S.eroareSync ? 'Reîmprospătează. Ceva nu s-a salvat sau nu s-a adus' : 'Reîmprospătează. Datele sunt la zi');
   document.querySelectorAll('nav.tabs button').forEach(function(t){
     var k=t.dataset.tab, c=t.querySelector('.cnt'), val=(k==='lucru'||k==='bani')?n[k]:0;
     if(val>0){ if(!c){ c=document.createElement('span'); c.className='cnt'; t.appendChild(c); } c.textContent=val; }
@@ -902,9 +905,10 @@ function trimite(action, payload){
       INCURS--;
       if(d && d.lucru){ if(INCURS===0) primeste(d); }          // răspuns complet (proba locală)
       else if(d && d.actualizat && S.data){ S.data.actualizat=d.actualizat; pastreaza(); }  // răspuns scurt: ecranul e deja la zi
-      arataSync();
+      semnSync(false); arataSync();
     })
-    .catch(function(e){ INCURS--; arataSync(); if(sesiune(e)) return; toast('Nu s-a salvat: '+errText(e)); reincarca().catch(function(){}); });
+    .catch(function(e){ INCURS--; arataSync(); if(sesiune(e)) return; toast('Nu s-a salvat: '+errText(e));
+      reincarca().then(function(){ semnSync(true); }, function(){ semnSync(true); }); });   // ↻ rămâne roșu până la următoarea actualizare reușită
 }
 function arataSync(){ var u=$('upd'); if(!u||!S.data) return; u.textContent = INCURS>0 ? 'Se trimite…' : actualizatText(S.data.actualizat); }
 function salvare(foaie, rand, btn, mesaj){
