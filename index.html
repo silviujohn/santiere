@@ -420,16 +420,26 @@ function fixe(){ return (S.data&&S.data.setari||[]).filter(function(r){ return /
 function fixeLuna(luna){ return fixe().filter(function(f){ return f.din<=luna; }); }
 function areFixe(luna, cat){ return fixeLuna(luna).some(function(f){ return f.cat===cat; }); }
 function sumaFixe(luna, cat){ return fixeLuna(luna).filter(function(f){ return !cat || f.cat===cat; }).reduce(function(a,f){ return a+f.suma; },0); }
-/* zile-om și ore pe toată luna, din pontaje */
+/* Împărțirea pe TOATĂ luna (Cătălin + Silviu, 26.11.2026): „de la întâia lunii până la ultima zi”.
+   Fiecare cheltuială fixă ÷ zilele lucrătoare ale lunii (luni–vineri, plus orice sâmbătă/duminică pontată) = partea unei zile.
+   Partea zilei se împarte între șantierele din ziua aceea: cazare și carburant după oameni, restul după ore.
+   Așa nu mai contează câte zile sunt pontate până azi; orice cheltuială fixă nouă intră la fel. */
 var BARA={};   // se golește la fiecare calcul (grupuri)
-function baraLuna(luna){ if(BARA[luna]) return BARA[luna]; var z=0,o=0; S.data.lucru.forEach(function(r){ if(String(r.data).slice(0,7)===luna){ z+=num(r.persoane); o+=num(r.ore); } }); return (BARA[luna]={zileOm:z, ore:o}); }
+function zileLucrLuna(luna){ var k='z'+luna; if(BARA[k]) return BARA[k];
+  var an=+luna.slice(0,4), l=+luna.slice(5,7), n=new Date(an,l,0).getDate(), z=0, pontate={};
+  S.data.lucru.forEach(function(r){ if(String(r.data).slice(0,7)===luna) pontate[String(r.data).slice(0,10)]=1; });
+  for(var d=1; d<=n; d++){ var zs=new Date(an,l-1,d).getDay(), iso=luna+'-'+(d<10?'0':'')+d; if((zs>=1&&zs<=5) || pontate[iso]) z++; }
+  return (BARA[k]=z); }
+function totalZi(data){ var k='d'+data; if(BARA[k]) return BARA[k]; var p=0,o=0; S.data.lucru.forEach(function(r){ if(String(r.data).slice(0,10)===data){ p+=num(r.persoane); o+=num(r.ore); } }); return (BARA[k]={pers:p, ore:o}); }
 function parteFixaDin(det){ return det ? det.fixeBirou+(det.chirieAuto?det.chirie:0)+(det.carbAuto?det.carburant:0) : 0; }
 /* partea automată a unei zile și a unui șantier (persoane, ore), din cheltuielile fixe ale lunii */
 function parteFixa(data, persoane, ore){
-  var luna=String(data).slice(0,7), b=baraLuna(luna);
-  return { cazare: b.zileOm>0 ? sumaFixe(luna,'cazare')*persoane/b.zileOm : 0,
-           carburant: b.zileOm>0 ? sumaFixe(luna,'carburant')*persoane/b.zileOm : 0,
-           general: b.ore>0 ? sumaFixe(luna,'general')*ore/b.ore : 0,
+  var luna=String(data).slice(0,7), zile=zileLucrLuna(luna), t=totalZi(String(data).slice(0,10));
+  function cota(cat, parte, tot){ if(!(zile>0)) return 0; var zi=sumaFixe(luna,cat)/zile; return tot>0 ? zi*parte/tot : 0; }
+  return { cazare: cota('cazare', persoane, t.pers),
+           carburant: cota('carburant', persoane, t.pers),
+           general: cota('general', ore, t.ore),
+           zileLuna: zile,
            areCazare: areFixe(luna,'cazare'), areCarburant: areFixe(luna,'carburant'), areGeneral: areFixe(luna,'general') };
 }
 /* cheltuielile unei zile: ce e scris în Costuri + partea fixă (chiria / carburantul de mână înlocuiesc partea automată) */
@@ -483,7 +493,7 @@ function totaluri(list){ var t={produs:0,cheltuieli:0,ramas:0,ore:0,metri:0,pers
 function arata(v){ ['vSetup','vLogin','vLoad','vApp'].forEach(function(id){ $(id).classList.toggle('hidden', id!==v); }); }
 /* Versiunea paginii. GitHub ține o copie veche până la ~10 minute; la fiecare pornire se verifică
    pagina de pe server (fără copie) și, dacă e mai nouă, se încarcă singură. (Silviu, 25.11.2026: „dacă dau refresh nu merge”) */
-var VERSIUNE='2026-11-26-1330';
+var VERSIUNE='2026-11-26-1345';
 function verificaVersiune(){
   if(LOCAL || IN_GOOGLE || !window.fetch) return;
   fetch(location.pathname+'?nv='+Date.now(),{cache:'no-store'}).then(function(r){ return r.ok? r.text() : ''; }).then(function(t){
@@ -716,14 +726,14 @@ function viewSetari(){
   var lunaAz=todayIso().slice(0,7), fx=fixeLuna(lunaAz), totFx=sumaFixe(lunaAz);
   h+='<div class="day">Cheltuieli fixe lunare</div>';
   if(true){
-    h+='<div class="small muted" style="margin:-2px 4px 8px">Cazările și carburantul se împart pe om și pe zi; restul după orele lucrate. Intră singure în cheltuielile fiecărei zile.</div>';
+    h+='<div class="small muted" style="margin:-2px 4px 8px">Fiecare cheltuială se împarte pe toate zilele lucrătoare ale lunii (luni–vineri, de la 1 la ultima zi). Partea unei zile merge la șantierele din ziua aceea: cazarea și carburantul după oameni, restul după ore.</div>';
     ['cazare','carburant','general'].forEach(function(cat){
       var l=fixe().filter(function(f){ return f.cat===cat; }); if(!l.length) return;
       h+='<div class="small muted" style="margin:10px 4px 4px;font-weight:600">'+esc(CAT_FIX[cat])+'</div>';
       l.forEach(function(f){ h+='<div class="lr"><button class="item" data-fix="'+esc(f.id)+'"><div class="row"><div class="grow"><div class="t">'+esc(f.nume)+'</div>'+
         (f.din>lunaAz?'<div class="small muted">din '+LUNI[+f.din.slice(5,7)-1]+' '+f.din.slice(0,4)+'</div>':'')+'</div><div class="num" style="font-weight:600">'+eur(f.suma)+'</div></div></button></div>'; });
     });
-    h+='<div class="card row" style="justify-content:space-between"><span class="muted">Total pe lună</span><b class="num">'+eur(totFx)+'</b></div>'+
+    h+='<div class="card row" style="justify-content:space-between"><span class="muted">Total pe lună</span><b class="num">'+eur(totFx)+'</b></div>'+(function(){ BARA={}; var z=zileLucrLuna(lunaAz); return z>0 ? '<div class="card row" style="justify-content:space-between"><span class="muted">Pe o zi lucrătoare ('+z+' zile în '+LUNI[+lunaAz.slice(5,7)-1]+')</span><b class="num">'+eur(totFx/z)+'</b></div>' : ''; })()+
        '<button class="btn block" data-act="fixnou">+ Adaugă cheltuială fixă</button>';
   }
   h+='<div class="card"><div class="t" style="font-weight:600">Semaforul</div><div class="legend small">'+
