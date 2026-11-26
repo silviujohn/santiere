@@ -153,8 +153,11 @@ nav.tabs svg{width:24px;height:24px}
 /* foaie de jos (formular) */
 .back{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:20;opacity:0;transition:opacity .2s ease}
 .back.show{opacity:1}
+.back{touch-action:none}
+/* cât e deschisă o fereastră, pagina din spate stă pe loc (pe iPhone, altfel derularea se blochează) */
+body.blocat{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 .sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;background:var(--bg);border-radius:22px 22px 0 0;
-  max-height:92vh;overflow:auto;transform:translateY(100%);transition:transform .22s ease;
+  max-height:92vh;max-height:92dvh;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;transform:translateY(100%);transition:transform .22s ease;
   padding:8px 16px calc(20px + env(safe-area-inset-bottom))}
 .sheet.show{transform:none}
 .sheet .in{max-width:640px;margin:0 auto}
@@ -499,7 +502,7 @@ function totaluri(list){ var t={produs:0,cheltuieli:0,ramas:0,ore:0,metri:0,pers
 function arata(v){ ['vSetup','vLogin','vLoad','vApp'].forEach(function(id){ $(id).classList.toggle('hidden', id!==v); }); }
 /* Versiunea paginii. GitHub ține o copie veche până la ~10 minute; la fiecare pornire se verifică
    pagina de pe server (fără copie) și, dacă e mai nouă, se încarcă singură. (Silviu, 25.11.2026: „dacă dau refresh nu merge”) */
-var VERSIUNE='2026-11-26-2135';
+var VERSIUNE='2026-11-26-2210';
 function verificaVersiune(){
   if(LOCAL || IN_GOOGLE || !window.fetch) return;
   fetch(location.pathname+'?nv='+Date.now(),{cache:'no-store'}).then(function(r){ return r.ok? r.text() : ''; }).then(function(t){
@@ -917,7 +920,12 @@ document.addEventListener('keydown',function(e){ if(e.key==='Escape') inchideMen
 window.addEventListener('scroll',inchideMeniu,{passive:true});
 
 /* =================== foaia de jos =================== */
+var POZ_PAGINA=null, T_INCHIDE=null;
+function blocheazaPagina(){ if(POZ_PAGINA!=null) return; POZ_PAGINA=window.scrollY||0; document.body.style.top=(-POZ_PAGINA)+'px'; document.body.classList.add('blocat'); }
+function deblocheazaPagina(){ if(POZ_PAGINA==null) return; var y=POZ_PAGINA; POZ_PAGINA=null; document.body.classList.remove('blocat'); document.body.style.top=''; window.scrollTo(0,y); }
 function deschide(html){
+  if(T_INCHIDE){ clearTimeout(T_INCHIDE); T_INCHIDE=null; }   // o fereastră nouă deschisă imediat după închidere nu mai e golită
+  blocheazaPagina();
   $('sheetIn').innerHTML='<div class="grab"></div>'+html;
   $('back').classList.remove('hidden'); $('sheet').classList.remove('hidden');
   requestAnimationFrame(function(){ $('back').classList.add('show'); $('sheet').classList.add('show'); });
@@ -1082,7 +1090,8 @@ function formLipeste(){
 
 function inchide(){
   $('back').classList.remove('show'); $('sheet').classList.remove('show');
-  setTimeout(function(){ $('back').classList.add('hidden'); $('sheet').classList.add('hidden'); $('sheetIn').innerHTML=''; },220);
+  deblocheazaPagina();
+  T_INCHIDE=setTimeout(function(){ T_INCHIDE=null; $('back').classList.add('hidden'); $('sheet').classList.add('hidden'); $('sheetIn').innerHTML=''; },220);
 }
 $('back').onclick=inchide;
 document.addEventListener('keydown',function(e){ if(e.key==='Escape' && !$('sheet').classList.contains('hidden')) inchide(); });
