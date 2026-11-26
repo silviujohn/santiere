@@ -483,7 +483,7 @@ function totaluri(list){ var t={produs:0,cheltuieli:0,ramas:0,ore:0,metri:0,pers
 function arata(v){ ['vSetup','vLogin','vLoad','vApp'].forEach(function(id){ $(id).classList.toggle('hidden', id!==v); }); }
 /* Versiunea paginii. GitHub ține o copie veche până la ~10 minute; la fiecare pornire se verifică
    pagina de pe server (fără copie) și, dacă e mai nouă, se încarcă singură. (Silviu, 25.11.2026: „dacă dau refresh nu merge”) */
-var VERSIUNE='2026-11-26-0032';
+var VERSIUNE='2026-11-26-1330';
 function verificaVersiune(){
   if(LOCAL || IN_GOOGLE || !window.fetch) return;
   fetch(location.pathname+'?nv='+Date.now(),{cache:'no-store'}).then(function(r){ return r.ok? r.text() : ''; }).then(function(t){
@@ -1226,14 +1226,18 @@ function formLucru(r){
   }
   function deseneazaOameni(){
     var el=$('lOam'); if(!el) return; var om=v('lOreOm');
+    /* Șantier fără echipă aleasă: îi arăt direct pe toți, nu o listă goală (Silviu, 26.11.2026) */
+    var faraEchipa = echipaSantier(v('lSant')).length===0;
+    if(faraEchipa) arataToti=true;
     el.innerHTML=listaOameni().map(function(o){ var on=bif.hasOwnProperty(o.nume), t=on?bif[o.nume]:num(o.tarif_ora);
       return '<div class="omr'+(on?' on':'')+'" data-n="'+esc(o.nume)+'"><button type="button" class="omb" aria-pressed="'+on+'"><span class="omc">'+(on?'✓':'')+'</span><span class="grow"><b>'+esc(o.nume)+'</b><span class="small muted"> · '+eur(t)+'/oră</span></span></button>'+
         (on?(function(){ var val=String(oreInd[o.nume]!=null?oreInd[o.nume]:om), opt=ORE_ALEGERI.map(String); if(val && opt.indexOf(val)<0) opt.push(val);
             return '<select class="omo num" aria-label="Ore '+esc(o.nume)+'">'+(val?'':'<option value="">–</option>')+opt.map(function(x){ return '<option value="'+x+'"'+(x===val?' selected':'')+'>'+String(x).replace('.',',')+'</option>'; }).join('')+'</select><span class="small muted">ore</span>'; })():'')+'</div>'; }).join('') ||
-      '<div class="small muted">Șantierul n-are echipă: Setări → apeși pe șantier → Echipa.</div>';
+      '<div class="small muted">Nu există oameni. Îi adaugi în Setări → Oameni.</div>';
     var altii=(S.data.oameni||[]).filter(function(o){ return o.activ!=='nu'; }).length - listaOameni().length;
     if(!arataToti && altii>0) el.innerHTML+='<button type="button" class="btn block" id="lAltii" style="min-height:40px">+ altcineva ('+altii+')</button>';
-    if(!nou && !alesi.length && Object.keys(bif).length===0) el.insertAdjacentHTML('afterbegin','<div class="small down" style="margin:0 4px 4px">Pontaj vechi, trecut fără nume: bifează cine a lucrat.</div>');
+    if(faraEchipa && listaOameni().length) el.insertAdjacentHTML('afterbegin','<div class="small muted" style="margin:0 4px 4px">'+esc(v('lSant')||'Șantierul')+' n-are echipă aleasă, așa că îi vezi pe toți. Echipa o alegi în Setări, apăsând pe șantier.</div>');
+    if(!nou && !alesi.length && Object.keys(bif).length===0) el.insertAdjacentHTML('afterbegin','<div class="small down" style="margin:0 4px 4px">Pontaj vechi, fără nume'+(num(r.persoane)>0?' ('+nr(num(r.persoane))+' oameni, '+nr(num(r.ore))+' ore)':'')+': bifează cine a lucrat.</div>');
     var ba=$('lAltii'); if(ba) ba.onclick=function(){ arataToti=true; deseneazaOameni(); };
     el.querySelectorAll('.omr').forEach(function(rw){ var n=rw.dataset.n;
       rw.querySelector('.omb').onclick=function(){ atins=true; if(bif.hasOwnProperty(n)){ delete bif[n]; delete oreInd[n]; } else { var o=(S.data.oameni||[]).find(function(x){ return x.nume===n; }); bif[n]=o?num(o.tarif_ora):0; } deseneazaOameni(); upd(); };
@@ -1248,7 +1252,7 @@ function formLucru(r){
     $('lOreCh').querySelectorAll('button').forEach(function(b){ b.onclick=function(){ $('lOreOm').value=b.dataset.o; oreInd={}; deseneazaOameni(); marcheazaCip(); upd(); }; }); }
   $('lTip').querySelectorAll('button').forEach(function(b){ b.onclick=function(){ tip=b.dataset.v; $('lTip').querySelectorAll('button').forEach(function(o){ o.classList.toggle('on',o===b); }); upd(); }; });
   ['lOre','lMetri'].forEach(function(id){ $(id).oninput=upd; $(id).onchange=upd; });
-  $('lSant').onchange=function(){ custom={ora:'',metru:''}; editing={ora:false,metru:false}; if(cuOameni){ if(nou && !atins) implicit(); deseneazaOameni(); } box('ora'); box('metru'); upd(); };
+  $('lSant').onchange=function(){ custom={ora:'',metru:''}; editing={ora:false,metru:false}; arataToti=false; if(cuOameni){ if(nou && !atins) implicit(); deseneazaOameni(); } box('ora'); box('metru'); upd(); };
   ['ora','metru'].forEach(function(k){ if(has(custom[k]) && fixPret(k)!=null && num(custom[k])===fixPret(k)) custom[k]=''; });
   box('ora'); box('metru'); upd();
   $('lCancel').onclick=inchide;
