@@ -112,6 +112,15 @@ header.top h1{font-size:28px;line-height:1.15;margin:0;font-weight:700;letter-sp
 .oml{display:flex;flex-direction:column;gap:6px;margin-top:4px}
 .omr{display:flex;align-items:center;gap:8px;background:var(--card2);border-radius:14px;padding:4px 10px 4px 4px}
 .omr.on{background:var(--green-bg)}
+/* butoanele Modifică / Șterge de pe un rând (Silviu, 26.11.2026) */
+.ract{flex:none;width:44px;height:44px;border:0;border-radius:12px;background:var(--card);color:var(--navy-t);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.ract.del{color:var(--red)}
+.ract svg{width:20px;height:20px}
+.omr.simplu{padding:4px 6px 4px 14px}
+.omr.simplu .grow{min-width:0;flex:1;min-height:44px;display:flex;align-items:center;flex-wrap:wrap}
+.field .omr.simplu span{display:inline;margin:0;font-size:inherit;color:inherit}
+.field .omr.simplu .small{font-size:14px;color:var(--muted)}
+.field .omr.simplu b{color:var(--text)}
 .field span.omc,.field .omb span{display:inline;margin:0;font-size:inherit;color:inherit}
 .field .omb .small{font-size:14px}
 .omb{flex:1;display:flex;align-items:center;gap:10px;min-height:44px;border:0;background:transparent;text-align:left;cursor:pointer;padding:4px}
@@ -519,7 +528,7 @@ function totaluri(list){ var t={produs:0,cheltuieli:0,ramas:0,ore:0,metri:0,pers
 function arata(v){ ['vSetup','vLogin','vLoad','vApp'].forEach(function(id){ $(id).classList.toggle('hidden', id!==v); }); }
 /* Versiunea paginii. GitHub ține o copie veche până la ~10 minute; la fiecare pornire se verifică
    pagina de pe server (fără copie) și, dacă e mai nouă, se încarcă singură. (Silviu, 25.11.2026: „dacă dau refresh nu merge”) */
-var VERSIUNE='2026-11-26-2240';
+var VERSIUNE='2026-11-26-2300';
 function verificaVersiune(){
   if(LOCAL || IN_GOOGLE || !window.fetch) return;
   fetch(location.pathname+'?nv='+Date.now(),{cache:'no-store'}).then(function(r){ return r.ok? r.text() : ''; }).then(function(t){
@@ -1336,25 +1345,9 @@ function formCost(_, data, sant){
   var x=grupuri().find(function(g){ return g.data===data && g.santier===sant; });
   var c=costPentru(data,sant);
   if(!x){ deschide('<h2>'+esc(sant)+'</h2><div class="small muted">'+esc(zi(data))+'</div><div class="empty">În ziua asta nu e trecut pontajul.</div><div class="actions"><button class="btn block" id="cCancel">Închide</button></div>'); $('cCancel').onclick=inchide; return; }
-  var d=x.det, f=d.fix, rows=[];
-  function rand(t, val, sub){ rows.push('<div class="row" style="align-items:flex-start;gap:10px;padding:5px 0"><span class="grow"><span>'+esc(t)+'</span>'+(sub?'<span class="small muted" style="display:block">'+esc(sub)+'</span>':'')+'</span><b class="num">'+eur(val)+'</b></div>'); }
-  var o=oreZi(data,sant), r=contribOra(sant);
-  rand('Salarii', d.salarii, d.salEst ? 'estimat: orele × tariful mediu al echipei (bifează oamenii la Pontaj)' : (d.salAuto ? 'din pontaj: orele fiecărui om × tariful lui' : 'trecute de mână'));
-  rand('Contribuții', d.contributii, d.conManual ? 'trecute de mână pe ziua asta' : (r>0 ? nr(o)+' ore × '+eur(r)+' pe oră' : 'suma pe oră nu e pusă la acest șantier (Setări)'));
-  f.lista.forEach(function(it){
-    if(it.cat==='cazare' && d.chirieManual) return;
-    if(it.cat==='carburant' && d.carbManual) return;
-    rand(it.nume, it.suma, it.propriu ? 'doar acest șantier' : (it.cat==='general' ? 'comună, după ore' : 'comună, după oameni'));
-  });
-  if(d.chirieManual) rand('Chirie / cazare', d.chirie, 'trecută de mână pe ziua asta');
-  if(d.carbManual) rand('Carburant și autostradă', d.carburant, 'trecut de mână pe ziua asta');
-  if(d.scule>0) rand('Scule și protecții', d.scule, 'trecute de mână pe ziua asta');
-  if(d.generale>0) rand('Cheltuieli generale', d.generale, (c&&c.generale_desc?c.generale_desc+' · ':'')+'trecute de mână pe ziua asta');
+  /* doar totalul zilei (Silviu, 26.11.2026: lista de cheltuieli „n-are rost să pui acolo”) */
   var sem=semafor(x);
   deschide('<h2>'+esc(sant)+'</h2><div class="small muted" style="margin:-8px 0 12px"><span style="text-transform:capitalize">'+esc(zi(data))+'</span> · '+nr(x.ore)+' ore</div>'+
-    '<div class="day" style="margin-top:4px">Cheltuielile zilei</div>'+
-    '<div class="card live">'+rows.join('')+'<div class="row" style="border-top:1px solid var(--line);margin-top:6px;padding-top:8px"><span class="muted">Total cheltuieli</span><b class="num">'+eur(d.total)+'</b></div></div>'+
-    '<div class="small muted" style="margin:6px 4px 12px">Se schimbă din Setări: apeși pe șantier și alegi ce cheltuieli are.</div>'+
     '<div class="card live"><div class="row"><span class="muted">Produs</span><b class="num">'+(x.lipsaTarif?'lipsă tarif':eur(x.produs))+'</b></div>'+
       '<div class="row"><span class="muted">Cheltuieli</span><b class="num">'+eur(x.cheltuieli)+'</b></div>'+
       '<div class="row"><span class="muted">Rămas</span><b class="num">'+eur(x.ramas)+'</b></div>'+
@@ -1397,8 +1390,10 @@ function oameniOrd(){ return (S.data.oameni||[]).slice().sort(function(a,b){ var
   var os=(a.santier||'~').localeCompare(b.santier||'~'); if(os) return os; return String(a.nume).localeCompare(String(b.nume)); }); }
 function omDupaNume(n){ var k=faraDiacritice(n); return (S.data.oameni||[]).find(function(o){ return faraDiacritice(o.nume)===k; })
   || (S.data.oameni||[]).find(function(o){ var p=faraDiacritice(o.nume).split(' '); return p.indexOf(k)>=0; }); }
-function formOm(o){
+function formOm(o, inapoiLa){
   var nou=!o; o=o||{id:'',nume:'',tarif_ora:'',santier:'',activ:'da'};
+  /* deschis din fereastra unui șantier: după salvare / ștergere / renunță te întorci acolo (Silviu, 26.11.2026) */
+  function inapoi(){ if(!inapoiLa) return; setTimeout(function(){ formSantier((S.data.santiere||[]).find(function(x){ return x.id===inapoiLa.id; })||inapoiLa); }, 260); }
   deschide('<h2>'+(nou?'Om nou':esc(o.nume))+'</h2>'+
     '<label class="field"><span>Nume și prenume</span><input id="omNume" value="'+esc(o.nume)+'"></label>'+
     '<label class="field"><span>Tarif pe oră €</span><input id="omTarif" inputmode="decimal" value="'+esc(virg(o.tarif_ora))+'" placeholder="0"></label>'+
@@ -1408,7 +1403,7 @@ function formOm(o){
     '<div class="err" id="fErr"></div>'+
     '<div class="actions"><button class="btn primary block" id="omSave">Salvează</button>'+(nou?'':'<button class="btn danger block" id="omDel">Șterge omul</button>')+'<button class="btn block" id="omCancel">Renunță</button></div>');
   /* șantierele omului (Silviu, 26.11.2026: „să pot modifica în care șantier va merge”) — se scriu în echipa fiecărui șantier */
-  var sanOm = nou ? [] : echipeOm(o.nume);
+  var sanOm = nou ? (inapoiLa ? [inapoiLa.nume] : []) : echipeOm(o.nume);
   function desSan(){ var el=$('omSan');
     el.innerHTML=santiereOrd().filter(function(s){ return s.activ!=='nu' || sanOm.indexOf(s.nume)>=0; }).map(function(s){ var on=sanOm.indexOf(s.nume)>=0;
       return '<div class="omr'+(on?' on':'')+'" data-s="'+esc(s.nume)+'"><button type="button" class="omb" aria-pressed="'+on+'"><span class="omc">'+(on?'✓':'')+'</span><span class="grow"><b>'+esc(s.nume)+'</b></span></button></div>'; }).join('');
@@ -1423,7 +1418,7 @@ function formOm(o){
       var r=JSON.parse(JSON.stringify(s)); r.echipa=JSON.stringify(nouaE); salvareTacita('Santiere', r);
     });
   }
-  $('omCancel').onclick=inchide;
+  $('omCancel').onclick=function(){ if(inapoiLa) formSantier((S.data.santiere||[]).find(function(x){ return x.id===inapoiLa.id; })||inapoiLa); else inchide(); };
   $('omSave').onclick=function(){
     var n=v('omNume'); if(!n){ $('fErr').textContent='Pune numele.'; return; }
     var dubla=(S.data.oameni||[]).find(function(x){ return faraDiacritice(x.nume)===faraDiacritice(n) && x.id!==o.id; });
@@ -1431,18 +1426,20 @@ function formOm(o){
     if(!(num(v('omTarif'))>0)){ $('fErr').textContent='Pune tariful pe oră.'; return; }
     scrieEchipe(o.nume||n, n);
     salvare('Oameni',{id:o.id||idNou(), nume:n, tarif_ora:String(num(v('omTarif'))), santier:sanOm[0]||'', activ:v('omActiv'), ordine:o.ordine||''}, this, 'Salvat: '+n);
+    inapoi();
   };
-  if(!nou) $('omDel').onclick=function(){ stergere('Oameni', o.id, this, 'Ștergi pe '+o.nume+'? Pontajele trecute rămân cum sunt.'); };
+  if(!nou) $('omDel').onclick=function(){ var inainte=(S.data.oameni||[]).length; stergere('Oameni', o.id, this, 'Ștergi pe '+o.nume+'? Pontajele trecute rămân cum sunt.'); if((S.data.oameni||[]).length<inainte) inapoi(); };
 }
 
 /* O cheltuială fixă lunară: nume, sumă, cum se împarte, din ce lună */
 /* santId = cheltuială proprie a unui șantier (Silviu, 26.11.2026); fără el = cheltuială comună */
-function formFix(f, santId){
+function formFix(f, santId, inapoiLa){
   var nou=!f; f=f||{id:'',nume:'',cat:'general',din:todayIso().slice(0,7),suma:'',sant:santId||''};
-  var sObj=f.sant ? (S.data.santiere||[]).find(function(s){ return s.id===f.sant; }) : null;
+  var sProp=f.sant ? (S.data.santiere||[]).find(function(s){ return s.id===f.sant; }) : null;
+  var sObj=inapoiLa || sProp;   // de unde ai venit: după salvare / ștergere / renunță te întorci la șantier
   var inapoi=function(){ if(sObj) formSantier(sObj); else inchide(); };
   deschide('<h2>'+(nou?(f.sant?'Cheltuială nouă':'Cheltuială comună nouă'):esc(f.nume))+'</h2>'+
-    (sObj?'<div class="small muted" style="margin:-8px 0 12px">Doar pentru șantierul '+esc(sObj.nume)+'</div>':'')+
+    (sProp?'<div class="small muted" style="margin:-8px 0 12px">Doar pentru șantierul '+esc(sProp.nume)+'</div>':(sObj?'<div class="small muted" style="margin:-8px 0 12px">Cheltuială comună: se schimbă la toate șantierele care o au bifată.</div>':''))+
     '<label class="field"><span>Nume</span><input id="fxNume" value="'+esc(f.nume)+'" placeholder="'+(f.sant?'ex. Chirie, Scule și protecții, Cheltuieli generale':'ex. Cazare oameni')+'"></label>'+
     '<label class="field"><span>Sumă pe lună €</span><input id="fxSuma" inputmode="decimal" value="'+(f.suma!==''?esc(virg(String(f.suma))):'')+'" placeholder="0"></label>'+
     (f.sant ? '<input type="hidden" id="fxCat" value="'+esc(f.cat)+'"><div class="small muted" style="margin:-4px 4px 8px">Se împarte pe zilele lucrătoare ale lunii; fiecare zi în care șantierul a lucrat primește partea ei.</div>' :
@@ -1479,31 +1476,50 @@ function formSantier(s){
     '<div class="field"><span>Doar ale acestui șantier (pe lună)</span><div id="sPro"></div></div>'+
     '<label class="field"><span>Stare</span><select id="sActiv"><option value="da"'+(s.activ!=='nu'?' selected':'')+'>Activ</option><option value="nu"'+(s.activ==='nu'?' selected':'')+'>Oprit (nu mai apare în listă)</option></select></label>'+
     '<div class="small muted" style="margin:0 4px">Tariful schimbat se aplică și zilelor deja trecute la acest șantier.</div>'+
-    ((S.data.oameni||[]).length ? '<div class="field"><span>Echipa: cine lucrează aici</span><div class="small muted" style="margin:0 4px 6px">La Pontaj apar deja bifați; acolo doar confirmi cine e prezent și orele.</div><div class="oml" id="sEch"></div></div>' : '')+
+    '<div class="field"><span>Echipa: cine lucrează aici</span><div class="small muted" style="margin:0 4px 6px">La Pontaj apar deja bifați; acolo doar confirmi cine e prezent și orele.</div><div class="oml" id="sEch"></div>'+
+      (nou?'':'<button type="button" class="btn block" id="sOmNou" style="margin-top:6px">+ Adaugă om</button>')+'</div>'+
     '<div class="err" id="fErr"></div>'+
     '<div class="actions"><button class="btn primary block" id="sSave">Salvează</button>'+(nou||blocat?'':'<button class="btn danger block" id="sDel">Șterge șantierul</button>')+'<button class="btn block" id="sCancel">Renunță</button></div>');
   var ech=nou? [] : echipaSantier(s.nume).slice();
+  /* butoane Modifică / Șterge pe fiecare rând; după ele te întorci aici (Silviu, 26.11.2026) */
+  var IC_ED='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+  var IC_DEL='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>';
+  function butoane(cheie, nume){ return nou ? '' : '<button type="button" class="ract" data-ed="'+esc(cheie)+'" aria-label="Modifică '+esc(nume)+'">'+IC_ED+'</button><button type="button" class="ract del" data-del="'+esc(cheie)+'" aria-label="Șterge '+esc(nume)+'">'+IC_DEL+'</button>'; }
+  function aici(){ var x=(S.data.santiere||[]).find(function(q){ return q.id===sid; }); return x || s; }
+  function inapoiAici(){ setTimeout(function(){ formSantier(aici()); }, 260); }
+  function sterge(foaie, id, intrebare){ if(!confirm(intrebare)) return; stergeMulte([{foaie:foaie,id:id}]); inapoiAici(); }
+  function salveazaEchipa(){ if(nou) return; var r=JSON.parse(JSON.stringify(aici())); delete r.cine; delete r.modificat; r.echipa=JSON.stringify(ech); salvareTacita('Santiere', r); }
   function desEch(){ var el=$('sEch'); if(!el) return;
-    el.innerHTML=oameniOrd().filter(function(o){ return o.activ!=='nu' || ech.indexOf(o.nume)>=0; }).map(function(o){ var on=ech.indexOf(o.nume)>=0;
-      return '<div class="omr'+(on?' on':'')+'" data-n="'+esc(o.nume)+'"><button type="button" class="omb" aria-pressed="'+on+'"><span class="omc">'+(on?'✓':'')+'</span><span class="grow"><b>'+esc(o.nume)+'</b><span class="small muted"> · '+eur(num(o.tarif_ora))+'/oră</span></span></button></div>'; }).join('');
-    el.querySelectorAll('.omr').forEach(function(rw){ rw.querySelector('.omb').onclick=function(){ var n=rw.dataset.n, i=ech.indexOf(n); if(i>=0) ech.splice(i,1); else ech.push(n); desEch(); }; });
+    var l=oameniOrd().filter(function(o){ return o.activ!=='nu' || ech.indexOf(o.nume)>=0; });
+    el.innerHTML = l.length ? l.map(function(o){ var on=ech.indexOf(o.nume)>=0;
+      return '<div class="omr'+(on?' on':'')+'" data-n="'+esc(o.nume)+'"><button type="button" class="omb" aria-pressed="'+on+'"><span class="omc">'+(on?'✓':'')+'</span><span class="grow"><b>'+esc(o.nume)+'</b><span class="small muted"> · '+eur(num(o.tarif_ora))+'/oră</span></span></button>'+butoane(o.id, o.nume)+'</div>'; }).join('')
+      : '<div class="small muted" style="margin:0 4px">Nu sunt oameni încă.</div>';
+    el.querySelectorAll('.omr').forEach(function(rw){ rw.querySelector('.omb').onclick=function(){ var n=rw.dataset.n, i=ech.indexOf(n); if(i>=0) ech.splice(i,1); else ech.push(n); salveazaEchipa(); desEch(); }; });
+    el.querySelectorAll('[data-ed]').forEach(function(b){ b.onclick=function(){ formOm((S.data.oameni||[]).find(function(o){ return o.id===b.dataset.ed; }), aici()); }; });
+    el.querySelectorAll('[data-del]').forEach(function(b){ b.onclick=function(){ var o=(S.data.oameni||[]).find(function(q){ return q.id===b.dataset.del; }); if(o) sterge('Oameni', o.id, 'Ștergi pe '+o.nume+'? Dispare de pe toate șantierele. Pontajele trecute rămân cum sunt.'); }; });
   }
   desEch();
+  if($('sOmNou')) $('sOmNou').onclick=function(){ formOm(null, aici()); };
   /* cheltuielile șantierului (Silviu, 26.11.2026): comune bifate/debifate + proprii */
   var sid = s.id || idNou(), excl = nou ? [] : excluse(s.nume).slice(), luna0=todayIso().slice(0,7);
   function salveazaExcl(){ salvareTacita('Setari',{id:'excl_'+sid, valoare:JSON.stringify(excl), nota:'Cheltuieli comune debifate la șantierul '+(v('sNume')||s.nume)}); }
   function desCom(){ var el=$('sCom'), l=fixe().filter(function(f){ return !f.sant; });
     if(!l.length){ el.innerHTML='<div class="small muted" style="margin:0 4px">Nu sunt cheltuieli comune. Le adaugi mai jos, în Setări.</div>'; return; }
     el.innerHTML=l.map(function(f){ var on=excl.indexOf(f.id)<0;
-      return '<div class="omr'+(on?' on':'')+'" data-f="'+esc(f.id)+'"><button type="button" class="omb" aria-pressed="'+on+'"><span class="omc">'+(on?'✓':'')+'</span><span class="grow"><b>'+esc(f.nume)+'</b><span class="small muted"> · '+eur(f.suma)+'/lună</span></span></button></div>'; }).join('');
+      return '<div class="omr'+(on?' on':'')+'" data-f="'+esc(f.id)+'"><button type="button" class="omb" aria-pressed="'+on+'"><span class="omc">'+(on?'✓':'')+'</span><span class="grow"><b>'+esc(f.nume)+'</b><span class="small muted"> · '+eur(f.suma)+'/lună</span></span></button>'+butoane(f.id, f.nume)+'</div>'; }).join('');
     el.querySelectorAll('.omr').forEach(function(rw){ rw.querySelector('.omb').onclick=function(){ var id=rw.dataset.f, i=excl.indexOf(id); if(i>=0) excl.splice(i,1); else excl.push(id); if(!nou) salveazaExcl(); desCom(); }; });
+    legaFix(el, 'Dispare de la TOATE șantierele.');
+  }
+  function legaFix(el, avert){
+    el.querySelectorAll('[data-ed]').forEach(function(b){ b.onclick=function(){ formFix(fixe().find(function(f){ return f.id===b.dataset.ed; }), '', aici()); }; });
+    el.querySelectorAll('[data-del]').forEach(function(b){ b.onclick=function(){ var f=fixe().find(function(q){ return q.id===b.dataset.del; }); if(f) sterge('Setari', f.id, 'Ștergi „'+f.nume+'” ('+eur(f.suma)+' pe lună)? '+avert); }; });
   }
   function desPro(){ var el=$('sPro'), l=fixe().filter(function(f){ return f.sant===sid; });
     if(nou){ el.innerHTML='<div class="small muted" style="margin:0 4px">Le adaugi după ce salvezi șantierul.</div>'; return; }
-    el.innerHTML=l.map(function(f){ return '<div class="lr"><button type="button" class="item" data-pro="'+esc(f.id)+'"><div class="row"><div class="grow"><div class="t">'+esc(f.nume)+'</div>'+(f.din>luna0?'<div class="small muted">din '+LUNI[+f.din.slice(5,7)-1]+' '+f.din.slice(0,4)+'</div>':'')+'</div><div class="num" style="font-weight:600">'+eur(f.suma)+'</div></div></button></div>'; }).join('')+
-      '<button type="button" class="btn block" id="sProNou">+ Adaugă cheltuială doar aici</button>';
-    el.querySelectorAll('[data-pro]').forEach(function(b){ b.onclick=function(){ formFix(fixe().find(function(f){ return f.id===b.dataset.pro; }), sid); }; });
-    $('sProNou').onclick=function(){ formFix(null, sid); };
+    el.innerHTML='<div class="oml">'+l.map(function(f){ return '<div class="omr simplu"><span class="grow"><b>'+esc(f.nume)+'</b><span class="small muted"> · '+eur(f.suma)+'/lună'+(f.din>luna0?' · din '+LUNI[+f.din.slice(5,7)-1]+' '+f.din.slice(0,4):'')+'</span></span>'+butoane(f.id, f.nume)+'</div>'; }).join('')+'</div>'+
+      '<button type="button" class="btn block" id="sProNou" style="margin-top:6px">+ Adaugă cheltuială doar aici</button>';
+    legaFix(el, '');
+    $('sProNou').onclick=function(){ formFix(null, sid, aici()); };
   }
   desCom(); desPro();
   $('sCancel').onclick=function(){ inchide(); render(); };
