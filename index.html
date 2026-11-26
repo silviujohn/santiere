@@ -19,6 +19,8 @@
   --fundal:radial-gradient(110% 55% at 100% 0%,rgba(46,125,91,.20) 0%,transparent 62%),radial-gradient(120% 70% at 0% 0%,rgba(30,58,95,.26) 0%,transparent 66%),radial-gradient(90% 50% at 50% 100%,rgba(224,138,0,.08) 0%,transparent 70%),linear-gradient(180deg,#dde6f1 0%,#eef1f6 50%,#f3f4f7 100%);
   --green-bg:#e3f1ea; --yellow-bg:#fdf0db; --red-bg:#fbe4e4; --shadow:0 1px 2px rgba(0,0,0,.05),0 4px 16px rgba(0,0,0,.04);
   --r:18px;
+  /* meniul de jos (Silviu, 26.11.2026): bara colorată, butoane gri închis, cel apăsat alb */
+  --tab-bar:#1e3a5f; --tab-btn:#3d4652; --tab-btn-text:#e3e7ec; --tab-on:#ffffff; --tab-on-text:#1e3a5f;
 }
 @media (prefers-color-scheme: dark){
   :root{
@@ -27,6 +29,7 @@
     --pescurt:#141d28; --totalbg:#1c2836;
     --fundal:radial-gradient(120% 60% at 100% 0%,rgba(76,185,138,.12) 0%,transparent 60%),radial-gradient(120% 70% at 0% 0%,rgba(79,122,184,.22) 0%,transparent 65%),linear-gradient(180deg,#0b1320 0%,#05080d 50%,#000 100%);
     --green-bg:#12301f; --yellow-bg:#3a2a0c; --red-bg:#3d1614; --shadow:none;
+    --tab-bar:#14263d; --tab-btn:#2e3540; --tab-btn-text:#d5dae1; --tab-on:#f4f4f6; --tab-on-text:#14263d;
   }
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -136,12 +139,15 @@ header.top h1{font-size:28px;line-height:1.15;margin:0;font-weight:700;letter-sp
 .chips button{flex:none;min-height:40px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--card);font-weight:600;cursor:pointer}
 .chips button.on{background:var(--accent);border-color:var(--accent);color:#fff}
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:7;display:flex;justify-content:center;
-  background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-  border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
-nav.tabs .in{display:flex;max-width:640px;width:100%}
-nav.tabs button{flex:1;min-height:60px;border:0;background:transparent;color:var(--muted);font-size:12px;font-weight:600;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer}
-nav.tabs button.on{color:var(--accent)}
+  background:var(--tab-bar);border-top:1px solid var(--tab-bar);padding-bottom:env(safe-area-inset-bottom);
+  box-shadow:0 -4px 16px rgba(0,0,0,.18)}
+nav.tabs .in{display:flex;gap:6px;max-width:640px;width:100%;padding:8px 8px 6px;box-sizing:border-box}
+nav.tabs button{flex:1;min-height:56px;border:0;border-radius:14px;background:var(--tab-btn);color:var(--tab-btn-text);font-size:12px;font-weight:600;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;
+  transition:background-color .18s ease,color .18s ease,transform .12s ease;-webkit-tap-highlight-color:transparent}
+nav.tabs button:active{transform:scale(.96)}
+nav.tabs button.on{background:var(--tab-on);color:var(--tab-on-text);box-shadow:0 2px 8px rgba(0,0,0,.25)}
+@media (prefers-reduced-motion: reduce){nav.tabs button{transition:none} nav.tabs button:active{transform:none}}
 nav.tabs svg{width:24px;height:24px}
 .empty{text-align:center;color:var(--muted);padding:40px 16px}
 /* foaie de jos (formular) */
@@ -493,7 +499,7 @@ function totaluri(list){ var t={produs:0,cheltuieli:0,ramas:0,ore:0,metri:0,pers
 function arata(v){ ['vSetup','vLogin','vLoad','vApp'].forEach(function(id){ $(id).classList.toggle('hidden', id!==v); }); }
 /* Versiunea paginii. GitHub ține o copie veche până la ~10 minute; la fiecare pornire se verifică
    pagina de pe server (fără copie) și, dacă e mai nouă, se încarcă singură. (Silviu, 25.11.2026: „dacă dau refresh nu merge”) */
-var VERSIUNE='2026-11-26-1345';
+var VERSIUNE='2026-11-26-2135';
 function verificaVersiune(){
   if(LOCAL || IN_GOOGLE || !window.fetch) return;
   fetch(location.pathname+'?nv='+Date.now(),{cache:'no-store'}).then(function(r){ return r.ok? r.text() : ''; }).then(function(t){
