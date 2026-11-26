@@ -116,6 +116,12 @@ header.top h1{font-size:28px;line-height:1.15;margin:0;font-weight:700;letter-sp
 .ract{flex:none;width:44px;height:44px;border:0;border-radius:12px;background:var(--card);color:var(--navy-t);display:flex;align-items:center;justify-content:center;cursor:pointer}
 .ract.del{color:var(--red)}
 .omr.sterg.on{background:var(--red-bg)}
+/* butonul care deblochează ordinea șantierelor */
+.ordrand{display:flex;align-items:center;gap:10px;margin:-2px 0 8px 4px}
+.ordbtn{flex:none;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--text);font-weight:600;cursor:pointer}
+.ordbtn.on{background:var(--navy);border-color:var(--navy);color:#fff}
+#setSrt:not(.deblocat) .drag{opacity:.3;pointer-events:none;touch-action:auto;cursor:default}
+#setSrt.deblocat .drag{color:var(--text);opacity:1}
 .omr.sterg.on .omc{background:var(--red);border-color:var(--red)}
 .btn[disabled]{opacity:.45}
 .ract svg{width:20px;height:20px}
@@ -531,7 +537,7 @@ function totaluri(list){ var t={produs:0,cheltuieli:0,ramas:0,ore:0,metri:0,pers
 function arata(v){ ['vSetup','vLogin','vLoad','vApp'].forEach(function(id){ $(id).classList.toggle('hidden', id!==v); }); }
 /* Versiunea paginii. GitHub ține o copie veche până la ~10 minute; la fiecare pornire se verifică
    pagina de pe server (fără copie) și, dacă e mai nouă, se încarcă singură. (Silviu, 25.11.2026: „dacă dau refresh nu merge”) */
-var VERSIUNE='2026-11-26-2345';
+var VERSIUNE='2026-11-26-2350';
 function verificaVersiune(){
   if(LOCAL || IN_GOOGLE || !window.fetch) return;
   fetch(location.pathname+'?nv='+Date.now(),{cache:'no-store'}).then(function(r){ return r.ok? r.text() : ''; }).then(function(t){
@@ -740,12 +746,14 @@ function viewRezumat(){
 }
 
 function viewSetari(){
-  var h='<div class="day">Șantiere și tarife</div><div class="small muted" style="margin:-2px 4px 6px">Ține apăsat pe ≡ și trage ca să schimbi ordinea. Cele oprite merg singure la coadă.</div>';
+  /* Ordinea se mută doar cu butonul pornit (Silviu, 26.11.2026: „risc să le activez cu mâna”): oprit = ≡ gri, nu se mișcă */
+  var h='<div class="day">Șantiere și tarife</div><div class="ordrand"><div class="small muted grow">'+(ORD_DESCHIS?'Ține apăsat pe ≡ și trage ca să schimbi ordinea. Cele oprite merg singure la coadă.':'Ordinea e blocată. Ca s-o schimbi, apasă „Mută ordinea”.')+'</div>'+
+    '<button type="button" class="ordbtn'+(ORD_DESCHIS?' on':'')+'" data-act="ordine" aria-pressed="'+ORD_DESCHIS+'">'+(ORD_DESCHIS?'Gata':'Mută ordinea')+'</button></div>';
   var ord=santiereOrd(), active=ord.filter(function(s){ return s.activ!=='nu'; });
   var deschis=false;
   ord.forEach(function(s){
     var ia=active.indexOf(s);
-    if(ia===0){ h+='<div class="srtlist" id="setSrt">'; deschis=true; }
+    if(ia===0){ h+='<div class="srtlist'+(ORD_DESCHIS?' deblocat':'')+'" id="setSrt">'; deschis=true; }
     if(ia<0 && deschis){ h+='</div>'; deschis=false; }
     h+='<div class="lr'+(ia>=0?' srt':'')+'" data-id="'+esc(s.id)+'"><button class="item" data-santier="'+esc(s.id)+'"><div class="row"><div class="grow"><div class="t">'+esc(s.nume)+(s.activ==='nu'?' <span class="chip">oprit</span>':'')+'</div>'+
       '<div class="small muted num">'+(has(s.tarif_ora)?eur(num(s.tarif_ora))+'/oră':'fără tarif la oră')+' · '+(has(s.pret_metru)?eur(num(s.pret_metru))+'/m²':'fără preț la metru')+'</div>'+
@@ -820,6 +828,7 @@ function bindMain(){
   m.querySelectorAll('[data-act]').forEach(function(b){ b.onclick=function(){
     var a=b.dataset.act;
     if(a==='tot'){ S.arataTot=true; render(); }
+    else if(a==='ordine'){ var y=window.scrollY; ORD_DESCHIS=!ORD_DESCHIS; render(); window.scrollTo(0,y); }
     else if(a==='iesi'){ uita(); arata('vLogin'); }
     else if(a==='parole') formParole();
     else if(a==='excel') descarcaExcel(S.rezLuna, b);
@@ -985,10 +994,12 @@ function legaAlegatoare(){
   });
 }
 /* Mutare cu degetul: se apucă de ≡, rândul urmează degetul, la ridicare se salvează ordinea. */
+var ORD_DESCHIS=false;
 function sortabil(lista, gata){
   if(!lista) return;
   lista.querySelectorAll('.drag').forEach(function(h){
     h.onpointerdown=function(e){
+      if(lista.id==='setSrt' && !lista.classList.contains('deblocat')) return;   // blocat: nu se mișcă nimic
       e.preventDefault();
       var rand=h.closest('.srt'), y0=e.clientY, mutat=false;
       rand.classList.add('trag'); h.setPointerCapture(e.pointerId);
@@ -1003,11 +1014,20 @@ function sortabil(lista, gata){
         }
         if(lista.lastChild!==rand){ var t0=rand.getBoundingClientRect().top; lista.appendChild(rand); y0+=rand.getBoundingClientRect().top-t0; rand.style.transform='translateY('+(ev.clientY-y0)+'px)'; mutat=true; }
       };
-      h.onpointerup=h.onpointercancel=function(){
+      /* când rândul se mută în listă, browserul pierde „prinderea” degetului și ridicarea nu mai ajunge la ≡;
+         de aceea sfârșitul se prinde și pe toată pagina (26.11.2026: ordinea nu se salva) */
+      var terminat=false;
+      function gataTras(){
+        if(terminat) return; terminat=true;
         h.onpointermove=null; h.onpointerup=null; h.onpointercancel=null;
+        document.removeEventListener('pointermove', muta, true); document.removeEventListener('pointerup', gataTras, true); document.removeEventListener('pointercancel', gataTras, true);
         rand.classList.remove('trag'); rand.style.transform='';
         if(mutat) gata(Array.prototype.map.call(lista.querySelectorAll('.srt'), function(x){ return x.dataset.id; }));
-      };
+      }
+      var muta=h.onpointermove;
+      h.onpointermove=null;
+      document.addEventListener('pointermove', muta, true);
+      document.addEventListener('pointerup', gataTras, true); document.addEventListener('pointercancel', gataTras, true);
     };
   });
 }
